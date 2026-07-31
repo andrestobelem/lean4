@@ -1,0 +1,7 @@
+name = "lean4"
+version = "0.1.0"
+defaultTargets = ["lean4"]
+
+[[lean_exe]]
+name = "lean4"
+root = "Main"
