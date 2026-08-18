@@ -13,3 +13,4 @@ Toolchain is pinned in `lean-toolchain` (elan). Mathlib is pinned to the same ta
 - Run the executable: `lake exe lean4`
 - First olympiad problem: `Lean4/Imo1959P1.lean` (IMO 1959 Q1).
 - After install, `elan`, `lean`, and `lake` are on `PATH` via `$HOME/.elan/bin`.
+- GitHub CLI: `gh` (installed by `.cursor/install.sh` if the distro package is missing).
