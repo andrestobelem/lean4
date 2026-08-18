@@ -1,4 +1,5 @@
 {
   "name": "lean4",
-  "install": "bash .cursor/install.sh"
+  "install": "bash .cursor/install.sh",
+  "start": "bash .cursor/gh-auth.sh"
 }

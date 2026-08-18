@@ -13,4 +13,5 @@ Toolchain is pinned in `lean-toolchain` (elan). Mathlib is pinned to the same ta
 - Run the executable: `lake exe lean4`
 - First olympiad problem: `Lean4/Imo1959P1.lean` (IMO 1959 Q1).
 - After install, `elan`, `lean`, and `lake` are on `PATH` via `$HOME/.elan/bin`.
-- GitHub CLI: `gh` (installed by `.cursor/install.sh` if the distro package is missing).
+- GitHub CLI: official `gh` apt package, on `PATH` via `$HOME/.local/bin`.
+- GitHub auth: add a **Runtime Secret** named `GH_USER_TOKEN` (a PAT). Do not use `GH_TOKEN`; Cursor overwrites that with the GitHub App token. `.cursor/gh-auth.sh` runs on each boot and logs `gh` in with that PAT.
