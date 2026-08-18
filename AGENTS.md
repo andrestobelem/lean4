@@ -6,8 +6,10 @@
 
 # Lean 4
 
-Toolchain is pinned in `lean-toolchain` (elan). Cloud Agent bootstrap is `.cursor/install.sh`.
+Toolchain is pinned in `lean-toolchain` (elan). Mathlib is pinned to the same tag (`v4.32.2`). Cloud Agent bootstrap is `.cursor/install.sh`.
 
+- After adding or updating Mathlib: `lake update` then `lake exe cache get` (do not compile Mathlib from source).
 - Build: `lake build`
 - Run the executable: `lake exe lean4`
+- First olympiad problem: `Lean4/Imo1959P1.lean` (IMO 1959 Q1).
 - After install, `elan`, `lean`, and `lake` are on `PATH` via `$HOME/.elan/bin`.
