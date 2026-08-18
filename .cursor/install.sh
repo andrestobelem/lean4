@@ -42,6 +42,13 @@ else
   elan toolchain install "${TOOLCHAIN}"
 fi
 
+# Mathlib is required by this project. Fetch precompiled oleans instead of
+# building it from source (which can take hours).
+if grep -q 'name = "mathlib"' lakefile.toml 2>/dev/null; then
+  echo "==> Fetching Mathlib cache"
+  lake exe cache get
+fi
+
 echo "==> Building project"
 lake build
 
