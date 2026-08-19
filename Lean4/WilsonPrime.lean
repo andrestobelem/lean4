@@ -146,4 +146,44 @@ theorem wilson_primes_below_563 :
     · exact ⟨by norm_num, isWilsonPrime_five⟩
     · exact ⟨by norm_num, isWilsonPrime_thirteen⟩
 
+/-- Lista de primos de Wilson en `2 ≤ p ≤ 1000`. -/
+private theorem wilson_bool_list_le_1000 :
+    (List.range' 2 999).filter isWilsonPrimeBool = [5, 13, 563] := by
+  native_decide
+
+/-- Por debajo o igual a 1000, los únicos primos de Wilson son 5, 13 y 563. -/
+theorem isWilsonPrime_le_1000 {p : ℕ} (hle : p ≤ 1000) :
+    IsWilsonPrime p ↔ p = 5 ∨ p = 13 ∨ p = 563 := by
+  constructor
+  · intro hW
+    have hmem : p ∈ (List.range' 2 999).filter isWilsonPrimeBool := by
+      rw [List.mem_filter, List.mem_range'_1]
+      refine ⟨⟨hW.1.two_le, by omega⟩, isWilsonPrime_iff_bool'.1 hW⟩
+    rw [wilson_bool_list_le_1000] at hmem
+    simpa using hmem
+  · rintro (rfl | rfl | rfl)
+    · exact isWilsonPrime_five
+    · exact isWilsonPrime_thirteen
+    · exact isWilsonPrime_563
+
+/-- El conjunto de primos de Wilson `≤ 1000` es exactamente `{5, 13, 563}`. -/
+theorem wilson_primes_le_1000 :
+    {p : ℕ | p ≤ 1000 ∧ IsWilsonPrime p} = ({5, 13, 563} : Set ℕ) := by
+  ext p
+  simp only [Set.mem_setOf_eq, Set.mem_insert_iff, Set.mem_singleton_iff]
+  constructor
+  · intro ⟨hle, hW⟩
+    exact (isWilsonPrime_le_1000 hle).1 hW
+  · rintro (rfl | rfl | rfl)
+    · exact ⟨by norm_num, isWilsonPrime_five⟩
+    · exact ⟨by norm_num, isWilsonPrime_thirteen⟩
+    · exact ⟨by norm_num, isWilsonPrime_563⟩
+
+/-- No hay primos de Wilson en el intervalo `(563, 1000]`. -/
+theorem no_wilson_primes_gt_563_le_1000 {p : ℕ}
+    (h563 : 563 < p) (h1000 : p ≤ 1000) : ¬ IsWilsonPrime p := by
+  intro hW
+  have := (isWilsonPrime_le_1000 h1000).1 hW
+  omega
+
 end WilsonPrime
