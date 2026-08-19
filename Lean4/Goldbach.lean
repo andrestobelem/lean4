@@ -34,34 +34,49 @@ theorem goldbach_of_witness {n : ℕ} (h : goldbachWitness n = true) :
   have : p < n := List.mem_range.1 hp_mem
   omega
 
-/-- Todos los pares entre 4 y 100 tienen un testigo de Goldbach. -/
-private theorem goldbach_witness_upto_100 :
-    ((List.range 49).map fun i => 2 * i + 4).all goldbachWitness = true := by
+/-- Pares desde 4 hasta `2 * count + 2` inclusive: `4, 6, …, 2*(count+1)`.
+Para llegar a `N` par hace falta `count = N/2 - 1`. -/
+def evenNumbersFrom4 (count : ℕ) : List ℕ :=
+  (List.range count).map fun i => 2 * i + 4
+
+theorem mem_evenNumbersFrom4 {count n : ℕ} :
+    n ∈ evenNumbersFrom4 count ↔ ∃ i < count, n = 2 * i + 4 := by
+  simp [evenNumbersFrom4, List.mem_map, List.mem_range]
+  constructor <;> rintro ⟨i, hi, h⟩ <;> exact ⟨i, hi, h.symm⟩
+
+/-- Todos los pares entre 4 y 1000 tienen un testigo de Goldbach. -/
+private theorem goldbach_witness_upto_1000 :
+    (evenNumbersFrom4 499).all goldbachWitness = true := by
   native_decide
 
-/-- La conjetura de Goldbach vale para todo par `n` con `4 ≤ n ≤ 100`. -/
-theorem goldbach_upto_100 {n : ℕ} (hn₄ : 4 ≤ n) (hn₁₀₀ : n ≤ 100) (hen : Even n) :
+/-- La conjetura de Goldbach vale para todo par `n` con `4 ≤ n ≤ 1000`. -/
+theorem goldbach_upto_1000 {n : ℕ} (hn₄ : 4 ≤ n) (hnN : n ≤ 1000) (hen : Even n) :
     ∃ p q, Nat.Prime p ∧ Nat.Prime q ∧ n = p + q := by
   obtain ⟨k, hk⟩ := hen
-  -- `n = k + k`, so `n = 2 * k` and `2 ≤ k ≤ 50`
   have hk2 : n = 2 * k := by omega
   subst hk2
-  have hi : k - 2 < 49 := by omega
-  have hmem : 2 * (k - 2) + 4 ∈ (List.range 49).map fun j => 2 * j + 4 := by
-    refine List.mem_map.2 ⟨k - 2, List.mem_range.2 hi, ?_⟩
-    omega
-  have hall := goldbach_witness_upto_100
+  have hi : k - 2 < 499 := by omega
+  have heq : 2 * (k - 2) + 4 = 2 * k := by omega
+  have hmem : 2 * (k - 2) + 4 ∈ evenNumbersFrom4 499 :=
+    (mem_evenNumbersFrom4).2 ⟨k - 2, hi, rfl⟩
   have hw : goldbachWitness (2 * (k - 2) + 4) = true :=
-    (List.all_eq_true.1 hall) _ hmem
-  have : 2 * (k - 2) + 4 = 2 * k := by omega
-  rw [← this]
+    (List.all_eq_true.1 goldbach_witness_upto_1000) _ hmem
+  rw [← heq]
   exact goldbach_of_witness hw
+
+/-- Caso particular: Goldbach hasta 100. -/
+theorem goldbach_upto_100 {n : ℕ} (hn₄ : 4 ≤ n) (hn₁₀₀ : n ≤ 100) (hen : Even n) :
+    ∃ p q, Nat.Prime p ∧ Nat.Prime q ∧ n = p + q :=
+  goldbach_upto_1000 hn₄ (by omega) hen
 
 /-- Ejemplos concretos verificados. -/
 theorem goldbach_4 : ∃ p q, Nat.Prime p ∧ Nat.Prime q ∧ 4 = p + q :=
-  goldbach_upto_100 (by norm_num) (by norm_num) (by decide)
+  goldbach_upto_1000 (by norm_num) (by norm_num) (by decide)
 
 theorem goldbach_100 : ∃ p q, Nat.Prime p ∧ Nat.Prime q ∧ 100 = p + q :=
-  goldbach_upto_100 (by norm_num) (by norm_num) (by decide)
+  goldbach_upto_1000 (by norm_num) (by norm_num) (by decide)
+
+theorem goldbach_1000 : ∃ p q, Nat.Prime p ∧ Nat.Prime q ∧ 1000 = p + q :=
+  goldbach_upto_1000 (by norm_num) (by norm_num) (by decide)
 
 end GoldbachConjecture
