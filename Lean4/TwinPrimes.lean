@@ -83,4 +83,39 @@ theorem eight_twin_primes_below_100 :
   rw [twin_bool_list_lt_100]
   decide
 
+/-- Los 35 primos gemelos estrictamente menores que 1000. -/
+def twinPrimesLt1000 : List ℕ :=
+  [3, 5, 11, 17, 29, 41, 59, 71, 101, 107, 137, 149, 179, 191, 197, 227, 239,
+    269, 281, 311, 347, 419, 431, 461, 521, 569, 599, 617, 641, 659, 809, 821,
+    827, 857, 881]
+
+private theorem twin_bool_list_lt_1000 :
+    (List.range 1000).filter isTwinPrimeBool = twinPrimesLt1000 := by
+  native_decide
+
+/-- Por debajo de 1000, `p` es primo gemelo ssi aparece en `twinPrimesLt1000`. -/
+theorem isTwinPrime_lt_1000 {p : ℕ} (hlt : p < 1000) :
+    IsTwinPrime p ↔ p ∈ twinPrimesLt1000 := by
+  constructor
+  · intro hT
+    have : p ∈ (List.range 1000).filter isTwinPrimeBool :=
+      List.mem_filter.2 ⟨List.mem_range.2 hlt, (isTwinPrime_iff_bool p).1 hT⟩
+    rwa [twin_bool_list_lt_1000] at this
+  · intro hmem
+    have : p ∈ (List.range 1000).filter isTwinPrimeBool := by
+      rwa [twin_bool_list_lt_1000]
+    exact (isTwinPrime_iff_bool p).2 (List.mem_filter.1 this).2
+
+/-- Hay exactamente 35 primos gemelos menores que 1000. -/
+theorem thirtyFive_twin_primes_below_1000 :
+    twinPrimesLt1000.length = 35 := by
+  native_decide
+
+/-- Todo elemento de `twinPrimesLt1000` es un primo gemelo. -/
+theorem mem_twinPrimesLt1000 {p : ℕ} (hp : p ∈ twinPrimesLt1000) :
+    IsTwinPrime p := by
+  have hmem : p ∈ (List.range 1000).filter isTwinPrimeBool := by
+    rwa [twin_bool_list_lt_1000]
+  exact (isTwinPrime_iff_bool p).2 (List.mem_filter.1 hmem).2
+
 end TwinPrimes
