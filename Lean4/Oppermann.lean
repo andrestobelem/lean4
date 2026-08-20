@@ -7,11 +7,16 @@ Conjeturas abiertas sobre huecos de primos entre cuadrados.
 -/
 import Mathlib.Data.Nat.Prime.Basic
 import Mathlib.NumberTheory.Bertrand
+import Mathlib.NumberTheory.PrimeCounting
 import Mathlib.Tactic
 
 open Nat
 
+open scoped Nat.Prime
+
 namespace Oppermann
+
+/-! ## Intervalos y la función π -/
 
 /-- Hay un primo estrictamente entre `lo` y `hi`. -/
 def hasPrimeInIoo (lo hi : ℕ) : Bool :=
@@ -42,6 +47,77 @@ theorem hasPrimeInIoo_iff {lo hi : ℕ} (hle : lo + 1 ≤ hi) :
   · intro ⟨p, hlo, hhi, hp⟩
     refine List.any_eq_true.2 ⟨p, ?_, decide_eq_true hp⟩
     exact (mem_range'_Ioo (p := p) hle).2 ⟨hlo, hhi⟩
+
+/-- `π a < π b` si y solo si hay un primo en el intervalo semiabierto `(a, b]`. -/
+theorem primeCounting_lt_iff {a b : ℕ} :
+    π a < π b ↔ ∃ p, a < p ∧ p ≤ b ∧ p.Prime := by
+  constructor
+  · intro h
+    obtain ⟨p, hpIco, hp⟩ := exists_of_count_lt_count (p := Nat.Prime) h
+    rw [Set.mem_Ico] at hpIco
+    exact ⟨p, by omega, by omega, hp⟩
+  · intro ⟨p, hap, hpb, hp⟩
+    have hle : count Nat.Prime (a + 1) ≤ count Nat.Prime p :=
+      count_monotone _ (Nat.succ_le_of_lt hap)
+    have hlt : count Nat.Prime p < count Nat.Prime (b + 1) :=
+      count_strict_mono hp (Nat.lt_succ_of_le hpb)
+    simpa [primeCounting, primeCounting'] using hle.trans_lt hlt
+
+/-- Hay un primo en `(lo, hi)` si y solo si `π(lo) < π(hi − 1)`. -/
+theorem exists_prime_Ioo_iff_pi {lo hi : ℕ} (hhi : 1 ≤ hi) :
+    (∃ p, lo < p ∧ p < hi ∧ p.Prime) ↔ π lo < π (hi - 1) := by
+  constructor
+  · intro ⟨p, hlo, hlt, hp⟩
+    exact primeCounting_lt_iff.2 ⟨p, hlo, Nat.le_sub_one_of_lt hlt, hp⟩
+  · intro h
+    obtain ⟨p, hlo, hle, hp⟩ := primeCounting_lt_iff.1 h
+    exact ⟨p, hlo, lt_of_le_of_lt hle (Nat.sub_lt hhi (by decide : (0 : ℕ) < 1)), hp⟩
+
+theorem not_prime_sq {x : ℕ} (hx : 2 ≤ x) : ¬ (x ^ 2).Prime := by
+  rw [pow_two]
+  exact Nat.not_prime_mul (by omega) (by omega)
+
+theorem not_prime_pronic {x : ℕ} (hx : 2 ≤ x) : ¬ (x * (x + 1)).Prime :=
+  Nat.not_prime_mul (by omega) (by omega)
+
+theorem primeCounting_pred_of_not_prime {n : ℕ} (hn : n ≠ 0) (hp : ¬ n.Prime) :
+    π n.pred = π n := by
+  cases n with
+  | zero => exact (hn rfl).elim
+  | succ n =>
+    simp [primeCounting, primeCounting', count_succ, hp]
+
+/-- Los extremos de Oppermann: `x(x−1) = x² − x` y `x(x+1) = x² + x`. -/
+theorem oppermann_interval_eq {x : ℕ} :
+    x * (x - 1) = x ^ 2 - x ∧ x * (x + 1) = x ^ 2 + x := by
+  constructor
+  · rw [Nat.mul_sub_left_distrib, Nat.mul_one, pow_two]
+  · rw [Nat.mul_add, Nat.mul_one, pow_two]
+
+/--
+Forma clásica (Wikipedia): Oppermann vale para `x` si y solo si
+`π(x(x−1)) < π(x²) < π(x(x+1))`.
+-/
+theorem oppermann_iff_pi {x : ℕ} (hx : 2 ≤ x) :
+    ((∃ p, x * (x - 1) < p ∧ p < x ^ 2 ∧ p.Prime) ∧
+      (∃ p, x ^ 2 < p ∧ p < x * (x + 1) ∧ p.Prime)) ↔
+      π (x * (x - 1)) < π (x ^ 2) ∧ π (x ^ 2) < π (x * (x + 1)) := by
+  have hx0 : x ≠ 0 := by omega
+  have hsq_pos : x ^ 2 ≠ 0 := pow_ne_zero 2 hx0
+  have hpronic_pos : x * (x + 1) ≠ 0 := mul_ne_zero hx0 (by omega)
+  have hsq1 : 1 ≤ x ^ 2 := Nat.one_le_iff_ne_zero.2 hsq_pos
+  have hpr1 : 1 ≤ x * (x + 1) := Nat.one_le_iff_ne_zero.2 hpronic_pos
+  have hleft := exists_prime_Ioo_iff_pi (lo := x * (x - 1)) (hi := x ^ 2) hsq1
+  have hright := exists_prime_Ioo_iff_pi (lo := x ^ 2) (hi := x * (x + 1)) hpr1
+  have hπsq : π (x ^ 2 - 1) = π (x ^ 2) := by
+    simpa [Nat.pred_eq_sub_one] using
+      primeCounting_pred_of_not_prime hsq_pos (not_prime_sq hx)
+  have hπpr : π (x * (x + 1) - 1) = π (x * (x + 1)) := by
+    simpa [Nat.pred_eq_sub_one] using
+      primeCounting_pred_of_not_prime hpronic_pos (not_prime_pronic hx)
+  rw [hleft, hright, hπsq, hπpr]
+
+/-! ## Verificación finita -/
 
 /-- Test booleano de Oppermann para un `x` fijo. -/
 def oppermannHolds (x : ℕ) : Bool :=
@@ -106,17 +182,29 @@ theorem oppermann_upto_50 {x : ℕ} (hx₂ : 2 ≤ x) (hx : x ≤ 50) :
     (∃ p, x ^ 2 < p ∧ p < x * (x + 1) ∧ p.Prime) :=
   oppermann_upto_10000 hx₂ (by omega)
 
-/-- Primer caso a mano: entre 2 y 4 está 3; entre 4 y 6 está 5. -/
+/-- Forma π para `x = 2`: `π(2) < π(4) < π(6)`. -/
+theorem oppermann_two_pi :
+    π (2 * (2 - 1)) < π (2 ^ 2) ∧ π (2 ^ 2) < π (2 * (2 + 1)) := by
+  decide
+
+/-- Forma π para `x = 3`: `π(6) < π(9) < π(12)`. -/
+theorem oppermann_three_pi :
+    π (3 * (3 - 1)) < π (3 ^ 2) ∧ π (3 ^ 2) < π (3 * (3 + 1)) := by
+  decide
+
+/-- Primer caso a mano, vía crecimiento de `π`. -/
 theorem oppermann_two_explicit :
     (∃ p, 2 * (2 - 1) < p ∧ p < 2 ^ 2 ∧ p.Prime) ∧
     (∃ p, 2 ^ 2 < p ∧ p < 2 * (2 + 1) ∧ p.Prime) :=
-  ⟨⟨3, by decide, by decide, by decide⟩, ⟨5, by decide, by decide, by decide⟩⟩
+  (oppermann_iff_pi (by decide)).2 oppermann_two_pi
 
-/-- Segundo caso a mano: entre 6 y 9 está 7; entre 9 y 12 está 11. -/
+/-- Segundo caso a mano, vía crecimiento de `π`. -/
 theorem oppermann_three_explicit :
     (∃ p, 3 * (3 - 1) < p ∧ p < 3 ^ 2 ∧ p.Prime) ∧
     (∃ p, 3 ^ 2 < p ∧ p < 3 * (3 + 1) ∧ p.Prime) :=
-  ⟨⟨7, by decide, by decide, by decide⟩, ⟨11, by decide, by decide, by decide⟩⟩
+  (oppermann_iff_pi (by decide)).2 oppermann_three_pi
+
+/-! ## Lo que sí se deduce de Mathlib (Bertrand) y lo que no -/
 
 /-- Bertrand aplicado a `x²`: hay un primo en `(x², 2x²]`. Eso es un teorema. -/
 theorem bertrand_after_square {x : ℕ} (hx : 0 < x) :
@@ -138,17 +226,34 @@ theorem bertrand_remainder_nonempty {x : ℕ} (hx : 2 ≤ x) :
     _ = 2 * x ^ 2 := by rw [pow_two]
 
 /--
+Si `π` crece en ambos intervalos de Oppermann, la conjetura vale para ese `x`.
+Este es el único input analítico que falta para `x` grande.
+-/
+theorem oppermann_of_pi {x : ℕ} (hx : 2 ≤ x)
+    (h : π (x * (x - 1)) < π (x ^ 2) ∧ π (x ^ 2) < π (x * (x + 1))) :
+    (∃ p, x * (x - 1) < p ∧ p < x ^ 2 ∧ p.Prime) ∧
+    (∃ p, x ^ 2 < p ∧ p < x * (x + 1) ∧ p.Prime) :=
+  (oppermann_iff_pi hx).2 h
+
+/-! ## Conjetura de Oppermann -/
+
+/--
 **Conjetura de Oppermann (abierta).**
-Para todo `x ≥ 2` hay un primo en `(x(x-1), x²)` y otro en `(x², x(x+1))`.
-Los casos `2 ≤ x ≤ 10000` están demostrados. El resto no se deduce de Bertrand:
-`bertrand_remainder_nonempty`.
+Para todo `x ≥ 2` hay un primo en `(x(x−1), x²)` y otro en `(x², x(x+1))`.
+Los casos `2 ≤ x ≤ 10000` están demostrados. El resto equivale a que `π` crezca
+en esos dos intervalos (`oppermann_iff_pi`) y no se deduce de Bertrand
+(`bertrand_remainder_nonempty`).
 -/
 theorem oppermann_conjecture (x : ℕ) (hx : 2 ≤ x) :
     (∃ p, x * (x - 1) < p ∧ p < x ^ 2 ∧ p.Prime) ∧
     (∃ p, x ^ 2 < p ∧ p < x * (x + 1) ∧ p.Prime) := by
   by_cases hle : x ≤ 10000
   · exact oppermann_upto_10000 hx hle
-  · sorry
+  · refine oppermann_of_pi hx ?_
+    -- Falta un teorema de huecos `O(√n)` alrededor de los cuadrados. Wikipedia sigue
+    -- listando la conjetura como abierta; Bertrand y las cotas de Chebyshev de Mathlib
+    -- dan intervalos multiplicativos, no de longitud `x` alrededor de `x²`.
+    sorry
 
 /-- Oppermann implica Legendre (teorema). -/
 theorem oppermann_implies_legendre
@@ -167,24 +272,28 @@ theorem oppermann_implies_legendre
     omega
   omega
 
+/-- Legendre para todo `n ≤ 9999`, como corolario de Oppermann hasta `10000`. -/
+theorem legendre_upto_9999 {n : ℕ} (hn : 1 ≤ n) (hn' : n ≤ 9999) :
+    ∃ p, n ^ 2 < p ∧ p < (n + 1) ^ 2 ∧ p.Prime := by
+  obtain ⟨⟨p, hp₁, hp₂, hpp⟩, _⟩ :=
+    oppermann_upto_10000 (x := n + 1) (by omega) (by omega)
+  refine ⟨p, ?_, hp₂, hpp⟩
+  have hmul : (n + 1) * ((n + 1) - 1) = n * (n + 1) := by
+    rw [Nat.add_one_sub_one, Nat.mul_comm]
+  rw [hmul] at hp₁
+  have hsq : n ^ 2 ≤ n * (n + 1) := by
+    rw [Nat.mul_add, Nat.mul_one, pow_two]
+    omega
+  omega
+
 /--
 **Conjetura de Legendre (abierta).**
 Para todo `n ≥ 1` hay un primo estrictamente entre `n²` y `(n+1)²`.
+Sigue de Oppermann por `oppermann_implies_legendre`.
 -/
 theorem legendre_conjecture (n : ℕ) (hn : 1 ≤ n) :
-    ∃ p, n ^ 2 < p ∧ p < (n + 1) ^ 2 ∧ p.Prime := by
-  by_cases hle : n ≤ 9999
-  · obtain ⟨⟨p, hp₁, hp₂, hpp⟩, _⟩ :=
-      oppermann_upto_10000 (x := n + 1) (by omega) (by omega)
-    refine ⟨p, ?_, hp₂, hpp⟩
-    have hmul : (n + 1) * ((n + 1) - 1) = n * (n + 1) := by
-      rw [Nat.add_one_sub_one, Nat.mul_comm]
-    rw [hmul] at hp₁
-    have hsq : n ^ 2 ≤ n * (n + 1) := by
-      rw [Nat.mul_add, Nat.mul_one, pow_two]
-      omega
-    omega
-  · sorry
+    ∃ p, n ^ 2 < p ∧ p < (n + 1) ^ 2 ∧ p.Prime :=
+  oppermann_implies_legendre oppermann_conjecture n hn
 
 /-- Test directo de Legendre. -/
 def legendreHolds (n : ℕ) : Bool :=
