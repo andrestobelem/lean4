@@ -6,8 +6,10 @@ https://github.com/google-deepmind/formal-conjectures/blob/main/FormalConjecture
 Conjeturas abiertas sobre huecos de primos entre cuadrados.
 -/
 import Mathlib.Data.Nat.Prime.Basic
+import Mathlib.Data.Nat.Sqrt
 import Mathlib.NumberTheory.Bertrand
 import Mathlib.NumberTheory.PrimeCounting
+import Mathlib.NumberTheory.Primorial
 import Mathlib.Tactic
 
 open Nat
@@ -47,6 +49,66 @@ theorem hasPrimeInIoo_iff {lo hi : ℕ} (hle : lo + 1 ≤ hi) :
   · intro ⟨p, hlo, hhi, hp⟩
     refine List.any_eq_true.2 ⟨p, ?_, decide_eq_true hp⟩
     exact (mem_range'_Ioo (p := p) hle).2 ⟨hlo, hhi⟩
+
+/-- Primer impar estrictamente mayor que `lo`. -/
+def firstOddGt (lo : ℕ) : ℕ := lo + 1 + lo % 2
+
+theorem firstOddGt_odd (lo : ℕ) : Odd (firstOddGt lo) := by
+  unfold firstOddGt
+  rcases Nat.mod_two_eq_zero_or_one lo with h | h
+  · exact ⟨lo / 2, by omega⟩
+  · exact ⟨lo / 2 + 1, by omega⟩
+
+theorem lo_lt_firstOddGt (lo : ℕ) : lo < firstOddGt lo := by
+  unfold firstOddGt
+  omega
+
+theorem firstOddGt_le_of_odd_gt {lo p : ℕ} (hp : Odd p) (h : lo < p) :
+    firstOddGt lo ≤ p := by
+  unfold firstOddGt
+  rcases hp with ⟨k, hk⟩
+  omega
+
+/-- Búsqueda que salta los pares. En los intervalos de Oppermann (`lo ≥ 2`) no se pierde el 2. -/
+def hasOddPrimeInIoo (lo hi : ℕ) : Bool :=
+  (List.range' (firstOddGt lo) ((hi - firstOddGt lo + 1) / 2) 2).any fun p =>
+    decide (Nat.Prime p)
+
+private theorem last_odd_lt_hi {lo hi : ℕ} {i : ℕ}
+    (hi_pos : i < (hi - firstOddGt lo + 1) / 2) :
+    firstOddGt lo + 2 * i < hi := by
+  have hmul : 2 * ((hi - firstOddGt lo + 1) / 2) ≤ hi - firstOddGt lo + 1 :=
+    Nat.mul_div_le _ _
+  have : 2 * i + 2 ≤ 2 * ((hi - firstOddGt lo + 1) / 2) := by
+    have := Nat.succ_le_of_lt hi_pos
+    nlinarith
+  omega
+
+theorem hasOddPrimeInIoo_iff {lo hi : ℕ} (hlo : 2 ≤ lo) (_hle : lo + 1 ≤ hi) :
+    hasOddPrimeInIoo lo hi = true ↔ ∃ p, lo < p ∧ p < hi ∧ p.Prime := by
+  unfold hasOddPrimeInIoo
+  constructor
+  · intro h
+    obtain ⟨p, hp_mem, hp⟩ := List.any_eq_true.1 h
+    obtain ⟨i, hi, rfl⟩ := List.mem_range'.1 hp_mem
+    refine ⟨firstOddGt lo + 2 * i, ?_, last_odd_lt_hi hi, of_decide_eq_true hp⟩
+    have := lo_lt_firstOddGt lo
+    omega
+  · intro ⟨p, hlt, hhi, hp⟩
+    have hp_ne_two : p ≠ 2 := by omega
+    have hp_odd : Odd p := (hp.eq_two_or_odd'.resolve_left hp_ne_two)
+    have hstart : firstOddGt lo ≤ p := firstOddGt_le_of_odd_gt hp_odd hlt
+    have hstep : 2 ∣ p - firstOddGt lo := by
+      rcases firstOddGt_odd lo with ⟨k, hk⟩
+      rcases hp_odd with ⟨k', hk'⟩
+      omega
+    obtain ⟨i, hi_eq⟩ := hstep
+    have hp' : p = firstOddGt lo + 2 * i := by omega
+    have hi_lt : i < (hi - firstOddGt lo + 1) / 2 := by
+      have : 2 * i < hi - firstOddGt lo := by omega
+      omega
+    refine List.any_eq_true.2 ⟨p, ?_, decide_eq_true hp⟩
+    exact List.mem_range'.2 ⟨i, hi_lt, hp'⟩
 
 /-- `π a < π b` si y solo si hay un primo en el intervalo semiabierto `(a, b]`. -/
 theorem primeCounting_lt_iff {a b : ℕ} :
@@ -94,6 +156,77 @@ theorem oppermann_interval_eq {x : ℕ} :
   · rw [Nat.mul_sub_left_distrib, Nat.mul_one, pow_two]
   · rw [Nat.mul_add, Nat.mul_one, pow_two]
 
+/-- El primorial crece en `(m, m+k]` si y solo si hay un primo en ese intervalo. -/
+theorem primorial_lt_add_iff {m k : ℕ} (_hk : 0 < k) :
+    primorial m < primorial (m + k) ↔ ∃ p, m < p ∧ p ≤ m + k ∧ p.Prime := by
+  rw [primorial_add m k]
+  have hP := primorial_pos m
+  constructor
+  · intro h
+    have hprod : 1 < ∏ p ∈ Finset.Ico (m + 1) (m + k + 1) with p.Prime, p :=
+      (Nat.lt_mul_iff_one_lt_right hP).1 h
+    by_contra hnone
+    have hempty : (Finset.Ico (m + 1) (m + k + 1)).filter Prime = ∅ := by
+      refine Finset.filter_eq_empty_iff.2 ?_
+      intro p hp hp'
+      simp only [Finset.mem_Ico] at hp
+      exact hnone ⟨p, Nat.lt_of_succ_le hp.1, Nat.lt_succ_iff.mp hp.2, hp'⟩
+    simp [hempty] at hprod
+  · intro ⟨p, hp1, hp2, hpp⟩
+    have hmem : p ∈ (Finset.Ico (m + 1) (m + k + 1)).filter Prime := by
+      simp [Finset.mem_filter, Finset.mem_Ico, hpp, Nat.succ_le_of_lt hp1,
+        Nat.lt_succ_of_le hp2]
+    have hge : p ≤ ∏ q ∈ Finset.Ico (m + 1) (m + k + 1) with q.Prime, q :=
+      Finset.single_le_prod' (fun q hq => (Finset.mem_filter.mp hq).2.one_lt.le) hmem
+    exact (Nat.lt_mul_iff_one_lt_right hP).2 (hpp.one_lt.trans_le hge)
+
+/-- Oppermann en forma de primorial: `x(x−1)# < x²# < x(x+1)#`. -/
+theorem oppermann_iff_primorial {x : ℕ} (hx : 2 ≤ x) :
+    ((∃ p, x * (x - 1) < p ∧ p < x ^ 2 ∧ p.Prime) ∧
+      (∃ p, x ^ 2 < p ∧ p < x * (x + 1) ∧ p.Prime)) ↔
+      primorial (x * (x - 1)) < primorial (x ^ 2) ∧
+        primorial (x ^ 2) < primorial (x * (x + 1)) := by
+  obtain ⟨hL, hR⟩ := oppermann_interval_eq (x := x)
+  have hk : 0 < x := by omega
+  have h₁ : x * (x - 1) + x = x ^ 2 := by
+    have : x ≤ x * x := Nat.le_mul_of_pos_left x hk
+    rw [hL, pow_two]
+    omega
+  have h₂ : x ^ 2 + x = x * (x + 1) := hR.symm
+  constructor
+  · intro ⟨⟨p, hp₁, hp₂, hpp⟩, ⟨q, hq₁, hq₂, hqp⟩⟩
+    have hLπ : primorial (x * (x - 1)) < primorial (x * (x - 1) + x) :=
+      (primorial_lt_add_iff hk).2 ⟨p, hp₁, by omega, hpp⟩
+    have hRπ : primorial (x ^ 2) < primorial (x ^ 2 + x) :=
+      (primorial_lt_add_iff hk).2 ⟨q, hq₁, by omega, hqp⟩
+    rw [h₁] at hLπ
+    rw [h₂] at hRπ
+    exact ⟨hLπ, hRπ⟩
+  · intro ⟨hπL, hπR⟩
+    have hL' := (primorial_lt_add_iff (m := x * (x - 1)) hk).1 (h₁ ▸ hπL)
+    have hR' := (primorial_lt_add_iff (m := x ^ 2) hk).1 (h₂ ▸ hπR)
+    obtain ⟨p, hp₁, hp₂, hpp⟩ := hL'
+    obtain ⟨q, hq₁, hq₂, hqp⟩ := hR'
+    refine ⟨⟨p, hp₁, ?_, hpp⟩, ⟨q, hq₁, ?_, hqp⟩⟩
+    · have : p ≠ x ^ 2 := fun heq => (not_prime_sq hx) (heq ▸ hpp)
+      rw [h₁] at hp₂
+      omega
+    · have : q ≠ x * (x + 1) := fun heq => (not_prime_pronic hx) (heq ▸ hqp)
+      rw [h₂] at hq₂
+      omega
+
+/-- Si hay primos en las ventanas de longitud `√(x²) = x` alrededor de `x²`, vale Oppermann. -/
+theorem oppermann_of_sqrt_window {x : ℕ} (_hx : 2 ≤ x)
+    (hL : ∃ p, x ^ 2 - (x ^ 2).sqrt < p ∧ p < x ^ 2 ∧ p.Prime)
+    (hR : ∃ p, x ^ 2 < p ∧ p < x ^ 2 + (x ^ 2).sqrt ∧ p.Prime) :
+    (∃ p, x * (x - 1) < p ∧ p < x ^ 2 ∧ p.Prime) ∧
+    (∃ p, x ^ 2 < p ∧ p < x * (x + 1) ∧ p.Prime) := by
+  rw [Nat.sqrt_eq'] at hL hR
+  obtain ⟨h₁, h₂⟩ := oppermann_interval_eq (x := x)
+  constructor
+  · simpa [h₁] using hL
+  · simpa [h₂] using hR
+
 /--
 Forma clásica (Wikipedia): Oppermann vale para `x` si y solo si
 `π(x(x−1)) < π(x²) < π(x(x+1))`.
@@ -119,10 +252,10 @@ theorem oppermann_iff_pi {x : ℕ} (hx : 2 ≤ x) :
 
 /-! ## Verificación finita -/
 
-/-- Test booleano de Oppermann para un `x` fijo. -/
+/-- Test booleano de Oppermann para un `x` fijo (solo impares: los intervalos tienen `lo ≥ 2`). -/
 def oppermannHolds (x : ℕ) : Bool :=
-  hasPrimeInIoo (x * (x - 1)) (x ^ 2) &&
-    hasPrimeInIoo (x ^ 2) (x * (x + 1))
+  hasOddPrimeInIoo (x * (x - 1)) (x ^ 2) &&
+    hasOddPrimeInIoo (x ^ 2) (x * (x + 1))
 
 private theorem oppermann_bounds {x : ℕ} (hx : 2 ≤ x) :
     x * (x - 1) + 1 ≤ x ^ 2 ∧ x ^ 2 + 1 ≤ x * (x + 1) := by
@@ -140,7 +273,12 @@ theorem oppermannHolds_iff {x : ℕ} (hx : 2 ≤ x) :
       (∃ p, x * (x - 1) < p ∧ p < x ^ 2 ∧ p.Prime) ∧
       (∃ p, x ^ 2 < p ∧ p < x * (x + 1) ∧ p.Prime) := by
   obtain ⟨h₁, h₂⟩ := oppermann_bounds hx
-  simp only [oppermannHolds, Bool.and_eq_true, hasPrimeInIoo_iff h₁, hasPrimeInIoo_iff h₂]
+  have hlo₁ : 2 ≤ x * (x - 1) := by
+    have : 1 ≤ x - 1 := by omega
+    exact Nat.mul_le_mul hx this
+  have hlo₂ : 2 ≤ x ^ 2 := by nlinarith
+  simp only [oppermannHolds, Bool.and_eq_true, hasOddPrimeInIoo_iff hlo₁ h₁,
+    hasOddPrimeInIoo_iff hlo₂ h₂]
 
 /-- Oppermann vale para todo `2 ≤ x ≤ 10000`. -/
 private theorem oppermann_bool_upto_10000 :
@@ -240,20 +378,17 @@ theorem oppermann_of_pi {x : ℕ} (hx : 2 ≤ x)
 /--
 **Conjetura de Oppermann (abierta).**
 Para todo `x ≥ 2` hay un primo en `(x(x−1), x²)` y otro en `(x², x(x+1))`.
-Los casos `2 ≤ x ≤ 10000` están demostrados. El resto equivale a que `π` crezca
-en esos dos intervalos (`oppermann_iff_pi`) y no se deduce de Bertrand
-(`bertrand_remainder_nonempty`).
+Los casos `2 ≤ x ≤ 10000` están demostrados. Equivalencias sorry-free:
+`oppermann_iff_pi`, `oppermann_iff_primorial`, `oppermann_of_sqrt_window`.
+Bertrand no basta (`bertrand_remainder_nonempty`).
 -/
 theorem oppermann_conjecture (x : ℕ) (hx : 2 ≤ x) :
     (∃ p, x * (x - 1) < p ∧ p < x ^ 2 ∧ p.Prime) ∧
     (∃ p, x ^ 2 < p ∧ p < x * (x + 1) ∧ p.Prime) := by
   by_cases hle : x ≤ 10000
   · exact oppermann_upto_10000 hx hle
-  · refine oppermann_of_pi hx ?_
-    -- Falta un teorema de huecos `O(√n)` alrededor de los cuadrados. Wikipedia sigue
-    -- listando la conjetura como abierta; Bertrand y las cotas de Chebyshev de Mathlib
-    -- dan intervalos multiplicativos, no de longitud `x` alrededor de `x²`.
-    sorry
+  · refine oppermann_of_sqrt_window hx ?_ ?_
+    all_goals sorry
 
 /-- Oppermann implica Legendre (teorema). -/
 theorem oppermann_implies_legendre
