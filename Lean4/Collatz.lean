@@ -52,12 +52,35 @@ theorem collatz_of_odd
       exact hodd n hn hodd'
 
 /--
-**Conjetura de Collatz (abierta).**
-Para todo entero positivo `n` existe `m` tal que el `m`-ésimo iterado de `collatzStep` es 1.
+Tras un paso impar, `3n+1` es par. El siguiente valor `(3n+1)/2` es **estrictamente mayor**
+que `n`. Por eso la inducción fuerte en `n` no cierra: el sucesor no es un caso menor.
+-/
+theorem collatz_odd_grows {n : ℕ} (hn : 0 < n) (hodd : n % 2 = 1) :
+    n < collatzStep n / 2 := by
+  have h3 : collatzStep n = 3 * n + 1 := collatzStep_of_odd hodd
+  rw [h3]
+  have hlt : 2 * n + 1 < 3 * n + 1 := by omega
+  have hdiv : (2 * n + 1) / 2 = n := by omega
+  have : (2 * n + 1) / 2 < (3 * n + 1) / 2 :=
+    Nat.div_lt_div_of_lt_of_dvd (by omega) hlt
+  omega
+
+/--
+**Obstáculo restante de Collatz:** todo impar positivo llega a 1.
+El caso par ya está demostrado (`collatz_of_odd`). Este enunciado es la conjetura.
+-/
+theorem collatz_odd (n : ℕ) (hn : 0 < n) (hodd : n % 2 = 1) :
+    ∃ m, collatzStep^[m] n = 1 := by
+  -- Intento: un paso impar y uno par producen `(3n+1)/2 > n` (`collatz_odd_grows`),
+  -- así que no es un caso menor de inducción. No hay descenso.
+  sorry
+
+/--
+**Conjetura de Collatz.** Se reduce al caso impar; el caso par es un teorema.
 -/
 theorem collatz_conjecture (n : ℕ) (hn : 0 < n) :
-    ∃ m, collatzStep^[m] n = 1 := by
-  sorry
+    ∃ m, collatzStep^[m] n = 1 :=
+  collatz_of_odd collatz_odd n hn
 
 /-- ¿Llega `n` a 1 en a lo sumo `fuel` pasos? -/
 def reachesOne : ℕ → ℕ → Bool
