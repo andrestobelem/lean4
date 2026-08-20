@@ -92,6 +92,18 @@ theorem oppermann_upto_50 {x : ℕ} (hx₂ : 2 ≤ x) (hx : x ≤ 50) :
 theorem oppermann_two : oppermannHolds 2 = true := by native_decide
 theorem oppermann_ten : oppermannHolds 10 = true := by native_decide
 
+/-- Primer caso a mano: entre 2 y 4 está 3; entre 4 y 6 está 5. -/
+theorem oppermann_two_explicit :
+    (∃ p, 2 * (2 - 1) < p ∧ p < 2 ^ 2 ∧ p.Prime) ∧
+    (∃ p, 2 ^ 2 < p ∧ p < 2 * (2 + 1) ∧ p.Prime) :=
+  ⟨⟨3, by decide, by decide, by decide⟩, ⟨5, by decide, by decide, by decide⟩⟩
+
+/-- Segundo caso a mano: entre 6 y 9 está 7; entre 9 y 12 está 11. -/
+theorem oppermann_three_explicit :
+    (∃ p, 3 * (3 - 1) < p ∧ p < 3 ^ 2 ∧ p.Prime) ∧
+    (∃ p, 3 ^ 2 < p ∧ p < 3 * (3 + 1) ∧ p.Prime) :=
+  ⟨⟨7, by decide, by decide, by decide⟩, ⟨11, by decide, by decide, by decide⟩⟩
+
 /--
 **Conjetura de Legendre (abierta).**
 Para todo `n ≥ 1` hay un primo estrictamente entre `n²` y `(n+1)²`.
