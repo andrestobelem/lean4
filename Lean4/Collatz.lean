@@ -15,6 +15,42 @@ namespace CollatzConjecture
 def collatzStep (n : ℕ) : ℕ :=
   if n % 2 = 0 then n / 2 else 3 * n + 1
 
+theorem collatzStep_of_even {n : ℕ} (h : n % 2 = 0) : collatzStep n = n / 2 := by
+  simp [collatzStep, h]
+
+theorem collatzStep_of_odd {n : ℕ} (h : n % 2 = 1) : collatzStep n = 3 * n + 1 := by
+  simp [collatzStep, h]
+
+/-- Si `n` es par y `n/2` llega a 1, entonces `n` llega a 1 en un paso más. -/
+theorem collatz_even_succ {n : ℕ} (he : n % 2 = 0)
+    (h : ∃ m, collatzStep^[m] (n / 2) = 1) :
+    ∃ m, collatzStep^[m] n = 1 := by
+  obtain ⟨m, hm⟩ := h
+  exact ⟨m + 1, (Function.iterate_succ_apply collatzStep m n).trans
+    (by rw [collatzStep_of_even he, hm])⟩
+
+/--
+La conjetura de Collatz se reduce a los impares: si todo impar positivo llega a 1,
+entonces todo positivo llega a 1.
+Este lema es un teorema; la hipótesis sobre los impares sigue abierta.
+-/
+theorem collatz_of_odd
+    (hodd : ∀ n, 0 < n → n % 2 = 1 → ∃ m, collatzStep^[m] n = 1) :
+    ∀ n, 0 < n → ∃ m, collatzStep^[m] n = 1 := by
+  intro n
+  induction n using Nat.strong_induction_on with
+  | h n ih =>
+    intro hn
+    by_cases he : n % 2 = 0
+    · have hn2 : 2 ≤ n := by
+        have : n ≠ 1 := fun h => by subst h; cases he
+        omega
+      have hpos : 0 < n / 2 := Nat.div_pos hn2 (by decide)
+      have hlt : n / 2 < n := Nat.div_lt_self hn (by decide : 1 < 2)
+      exact collatz_even_succ he (ih (n / 2) hlt hpos)
+    · have hodd' : n % 2 = 1 := Nat.mod_two_ne_zero.1 he
+      exact hodd n hn hodd'
+
 /--
 **Conjetura de Collatz (abierta).**
 Para todo entero positivo `n` existe `m` tal que el `m`-ésimo iterado de `collatzStep` es 1.
@@ -41,28 +77,36 @@ theorem reachesOne_spec {n fuel : ℕ} (h : reachesOne n fuel = true) :
     · obtain ⟨m, hm⟩ := ih h'
       exact ⟨m + 1, (Function.iterate_succ_apply collatzStep m n).trans hm⟩
 
-/-- Todos los `n` con `1 ≤ n ≤ 100` llegan a 1 con a lo sumo 200 pasos. -/
-private theorem reachesOne_upto_100 :
-    (List.range' 1 100).all (fun n => reachesOne n 200) = true := by
+/-- Todos los `n` con `1 ≤ n ≤ 1000` llegan a 1 con a lo sumo 200 pasos. -/
+private theorem reachesOne_upto_1000 :
+    (List.range' 1 1000).all (fun n => reachesOne n 200) = true := by
   native_decide
 
-/-- La conjetura de Collatz vale para todo `n` con `1 ≤ n ≤ 100`. -/
-theorem collatz_upto_100 {n : ℕ} (hn₁ : 1 ≤ n) (hn : n ≤ 100) :
+/-- La conjetura de Collatz vale para todo `n` con `1 ≤ n ≤ 1000`. -/
+theorem collatz_upto_1000 {n : ℕ} (hn₁ : 1 ≤ n) (hn : n ≤ 1000) :
     ∃ m, collatzStep^[m] n = 1 := by
-  have hmem : n ∈ List.range' 1 100 := by
+  have hmem : n ∈ List.range' 1 1000 := by
     rw [List.mem_range'_1]
     exact ⟨hn₁, by omega⟩
   have hbool : reachesOne n 200 = true :=
-    (List.all_eq_true.1 reachesOne_upto_100) n hmem
+    (List.all_eq_true.1 reachesOne_upto_1000) n hmem
   exact reachesOne_spec hbool
 
+/-- Caso particular: Collatz hasta 100. -/
+theorem collatz_upto_100 {n : ℕ} (hn₁ : 1 ≤ n) (hn : n ≤ 100) :
+    ∃ m, collatzStep^[m] n = 1 :=
+  collatz_upto_1000 hn₁ (by omega)
+
 theorem collatz_1 : ∃ m, collatzStep^[m] 1 = 1 :=
-  collatz_upto_100 (by norm_num) (by norm_num)
+  collatz_upto_1000 (by norm_num) (by norm_num)
 
 theorem collatz_27 : ∃ m, collatzStep^[m] 27 = 1 :=
-  collatz_upto_100 (by norm_num) (by norm_num)
+  collatz_upto_1000 (by norm_num) (by norm_num)
 
 theorem collatz_97 : ∃ m, collatzStep^[m] 97 = 1 :=
-  collatz_upto_100 (by norm_num) (by norm_num)
+  collatz_upto_1000 (by norm_num) (by norm_num)
+
+theorem collatz_871 : ∃ m, collatzStep^[m] 871 = 1 :=
+  collatz_upto_1000 (by norm_num) (by norm_num)
 
 end CollatzConjecture
