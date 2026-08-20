@@ -6,6 +6,7 @@ https://github.com/google-deepmind/formal-conjectures/blob/main/FormalConjecture
 Conjeturas abiertas sobre huecos de primos entre cuadrados.
 -/
 import Mathlib.Data.Nat.Prime.Basic
+import Mathlib.Data.Nat.Prime.Nth
 import Mathlib.Data.Nat.Sqrt
 import Mathlib.NumberTheory.Bertrand
 import Mathlib.NumberTheory.PrimeCounting
@@ -317,6 +318,7 @@ theorem minFac_gt_iff_coprime_primorial {x m : ℕ} (hm : 1 < m) :
       Nat.not_coprime_of_dvd_of_dvd hpf.one_lt (minFac_dvd m)
         (hpf.dvd_primorial_iff.2 hle)
     exact this hcop
+
 /-- Si `1 < m`, entonces `x ≤ minFac m` ↔ `m` es coprimo a `(x − 1)#`. -/
 theorem minFac_ge_iff_coprime_primorial_pred {x m : ℕ} (hx : 1 ≤ x) (hm : 1 < m) :
     x ≤ m.minFac ↔ Coprime m (primorial (x - 1)) := by
@@ -379,6 +381,45 @@ theorem oppermann_iff_coprime_primorial {x : ℕ} (hx : 2 ≤ x) :
       (oppermann_right_iff_coprime_primorial hx).2 hR⟩
 
 /--
+Cota tipo Jacobsthal: si todo intervalo abierto de longitud `x` contiene un entero
+coprimo a `x#`, el lado derecho de Oppermann vale (tomar el intervalo `(x², x²+x)`).
+-/
+theorem oppermann_right_of_jacobsthal {x : ℕ} (hx : 2 ≤ x)
+    (h : ∀ a, ∃ m, a < m ∧ m < a + x ∧ Coprime m (primorial x)) :
+    ∃ p, x ^ 2 < p ∧ p < x * (x + 1) ∧ p.Prime := by
+  obtain ⟨m, hm₁, hm₂, hcop⟩ := h (x ^ 2)
+  have hhi : m < x * (x + 1) := by
+    rw [(oppermann_interval_eq (x := x)).2]
+    exact hm₂
+  exact (oppermann_right_iff_coprime_primorial hx).2 ⟨m, hm₁, hhi, hcop⟩
+
+/--
+Cota tipo Jacobsthal a la izquierda: si todo intervalo abierto de longitud `x` contiene
+un entero coprimo a `(x−1)#`, el lado izquierdo de Oppermann vale.
+-/
+theorem oppermann_left_of_jacobsthal {x : ℕ} (hx : 2 ≤ x)
+    (h : ∀ a, ∃ m, a < m ∧ m < a + x ∧ Coprime m (primorial (x - 1))) :
+    ∃ p, x * (x - 1) < p ∧ p < x ^ 2 ∧ p.Prime := by
+  obtain ⟨m, hm₁, hm₂, hcop⟩ := h (x * (x - 1))
+  have hadd : x * (x - 1) + x = x ^ 2 := by
+    have hL := (oppermann_interval_eq (x := x)).1
+    have : x ≤ x * x := Nat.le_mul_of_pos_left x (by omega)
+    rw [hL, pow_two]
+    omega
+  have hhi : m < x ^ 2 := by
+    rw [← hadd]
+    exact hm₂
+  exact (oppermann_left_iff_coprime_primorial hx).2 ⟨m, hm₁, hhi, hcop⟩
+
+/-- Oppermann sigue de cotas Jacobsthal uniformes `j(x#) ≤ x` y `j((x−1)#) ≤ x`. -/
+theorem oppermann_of_jacobsthal {x : ℕ} (hx : 2 ≤ x)
+    (hL : ∀ a, ∃ m, a < m ∧ m < a + x ∧ Coprime m (primorial (x - 1)))
+    (hR : ∀ a, ∃ m, a < m ∧ m < a + x ∧ Coprime m (primorial x)) :
+    (∃ p, x * (x - 1) < p ∧ p < x ^ 2 ∧ p.Prime) ∧
+    (∃ p, x ^ 2 < p ∧ p < x * (x + 1) ∧ p.Prime) :=
+  ⟨oppermann_left_of_jacobsthal hx hL, oppermann_right_of_jacobsthal hx hR⟩
+
+/--
 Forma clásica (Wikipedia): Oppermann vale para `x` si y solo si
 `π(x(x−1)) < π(x²) < π(x(x+1))`.
 -/
@@ -431,45 +472,50 @@ theorem oppermannHolds_iff {x : ℕ} (hx : 2 ≤ x) :
   simp only [oppermannHolds, Bool.and_eq_true, hasOddPrimeInIoo_iff hlo₁ h₁,
     hasOddPrimeInIoo_iff hlo₂ h₂]
 
-/-- Oppermann vale para todo `2 ≤ x ≤ 10000`. -/
-private theorem oppermann_bool_upto_10000 :
-    (List.range' 2 9999).all oppermannHolds = true := by
+/-- Oppermann vale para todo `2 ≤ x ≤ 20000`. -/
+private theorem oppermann_bool_upto_20000 :
+    (List.range' 2 19999).all oppermannHolds = true := by
   native_decide
 
-theorem oppermann_upto_10000 {x : ℕ} (hx₂ : 2 ≤ x) (hx : x ≤ 10000) :
+theorem oppermann_upto_20000 {x : ℕ} (hx₂ : 2 ≤ x) (hx : x ≤ 20000) :
     (∃ p, x * (x - 1) < p ∧ p < x ^ 2 ∧ p.Prime) ∧
     (∃ p, x ^ 2 < p ∧ p < x * (x + 1) ∧ p.Prime) := by
-  have hmem : x ∈ List.range' 2 9999 := by
+  have hmem : x ∈ List.range' 2 19999 := by
     rw [List.mem_range'_1]
     exact ⟨hx₂, by omega⟩
   have hbool : oppermannHolds x = true :=
-    (List.all_eq_true.1 oppermann_bool_upto_10000) x hmem
+    (List.all_eq_true.1 oppermann_bool_upto_20000) x hmem
   exact (oppermannHolds_iff hx₂).1 hbool
+
+theorem oppermann_upto_10000 {x : ℕ} (hx₂ : 2 ≤ x) (hx : x ≤ 10000) :
+    (∃ p, x * (x - 1) < p ∧ p < x ^ 2 ∧ p.Prime) ∧
+    (∃ p, x ^ 2 < p ∧ p < x * (x + 1) ∧ p.Prime) :=
+  oppermann_upto_20000 hx₂ (by omega)
 
 theorem oppermann_upto_2000 {x : ℕ} (hx₂ : 2 ≤ x) (hx : x ≤ 2000) :
     (∃ p, x * (x - 1) < p ∧ p < x ^ 2 ∧ p.Prime) ∧
     (∃ p, x ^ 2 < p ∧ p < x * (x + 1) ∧ p.Prime) :=
-  oppermann_upto_10000 hx₂ (by omega)
+  oppermann_upto_20000 hx₂ (by omega)
 
 theorem oppermann_upto_500 {x : ℕ} (hx₂ : 2 ≤ x) (hx : x ≤ 500) :
     (∃ p, x * (x - 1) < p ∧ p < x ^ 2 ∧ p.Prime) ∧
     (∃ p, x ^ 2 < p ∧ p < x * (x + 1) ∧ p.Prime) :=
-  oppermann_upto_10000 hx₂ (by omega)
+  oppermann_upto_20000 hx₂ (by omega)
 
 theorem oppermann_upto_200 {x : ℕ} (hx₂ : 2 ≤ x) (hx : x ≤ 200) :
     (∃ p, x * (x - 1) < p ∧ p < x ^ 2 ∧ p.Prime) ∧
     (∃ p, x ^ 2 < p ∧ p < x * (x + 1) ∧ p.Prime) :=
-  oppermann_upto_10000 hx₂ (by omega)
+  oppermann_upto_20000 hx₂ (by omega)
 
 theorem oppermann_upto_100 {x : ℕ} (hx₂ : 2 ≤ x) (hx : x ≤ 100) :
     (∃ p, x * (x - 1) < p ∧ p < x ^ 2 ∧ p.Prime) ∧
     (∃ p, x ^ 2 < p ∧ p < x * (x + 1) ∧ p.Prime) :=
-  oppermann_upto_10000 hx₂ (by omega)
+  oppermann_upto_20000 hx₂ (by omega)
 
 theorem oppermann_upto_50 {x : ℕ} (hx₂ : 2 ≤ x) (hx : x ≤ 50) :
     (∃ p, x * (x - 1) < p ∧ p < x ^ 2 ∧ p.Prime) ∧
     (∃ p, x ^ 2 < p ∧ p < x * (x + 1) ∧ p.Prime) :=
-  oppermann_upto_10000 hx₂ (by omega)
+  oppermann_upto_20000 hx₂ (by omega)
 
 /-- Forma π para `x = 2`: `π(2) < π(4) < π(6)`. -/
 theorem oppermann_two_pi :
@@ -529,23 +575,25 @@ theorem oppermann_of_pi {x : ℕ} (hx : 2 ≤ x)
 /--
 **Conjetura de Oppermann (abierta).**
 Para todo `x ≥ 2` hay un primo en `(x(x−1), x²)` y otro en `(x², x(x+1))`.
-Los casos `2 ≤ x ≤ 10000` están demostrados. Equivalencias sorry-free:
+Los casos `2 ≤ x ≤ 20000` están demostrados. Equivalencias sorry-free:
 `oppermann_iff_pi`, `oppermann_iff_primorial`, `oppermann_of_sqrt_window`,
 `oppermann_left_iff_minFac`, `oppermann_right_iff_minFac`,
 `oppermann_left_iff_coprime_primorial`, `oppermann_right_iff_coprime_primorial`.
-Bertrand no basta (`bertrand_remainder_nonempty`).
+Suficiente (más fuerte): `oppermann_of_jacobsthal`. Bertrand no basta
+(`bertrand_remainder_nonempty`). Corolarios condicionales:
+`oppermann_implies_legendre`, `oppermann_implies_brocard`.
 -/
 theorem oppermann_conjecture (x : ℕ) (hx : 2 ≤ x) :
     (∃ p, x * (x - 1) < p ∧ p < x ^ 2 ∧ p.Prime) ∧
     (∃ p, x ^ 2 < p ∧ p < x * (x + 1) ∧ p.Prime) := by
-  by_cases hle : x ≤ 10000
-  · exact oppermann_upto_10000 hx hle
+  by_cases hle : x ≤ 20000
+  · exact oppermann_upto_20000 hx hle
   · constructor
     · refine (oppermann_left_iff_coprime_primorial hx).2 ?_
-      -- Falta `m ∈ (x(x−1), x²)` coprimo a `(x−1)#` (criba: ningún primo `< x`).
+      -- Falta `m ∈ (x(x−1), x²)` coprimo a `(x−1)#`.
       sorry
     · refine (oppermann_right_iff_coprime_primorial hx).2 ?_
-      -- Falta `m ∈ (x², x(x+1))` coprimo a `x#` (criba: ningún primo `≤ x`).
+      -- Falta `m ∈ (x², x(x+1))` coprimo a `x#`.
       sorry
 
 /-- Oppermann implica Legendre (teorema). -/
@@ -565,11 +613,64 @@ theorem oppermann_implies_legendre
     omega
   omega
 
-/-- Legendre para todo `n ≤ 9999`, como corolario de Oppermann hasta `10000`. -/
-theorem legendre_upto_9999 {n : ℕ} (hn : 1 ≤ n) (hn' : n ≤ 9999) :
+/-- Oppermann implica Brocard: hay al menos 4 primos entre cuadrados de primos consecutivos. -/
+theorem oppermann_implies_brocard
+    (hOpp : ∀ x, 2 ≤ x →
+      (∃ p, x * (x - 1) < p ∧ p < x ^ 2 ∧ p.Prime) ∧
+      (∃ p, x ^ 2 < p ∧ p < x * (x + 1) ∧ p.Prime))
+    (n : ℕ) (hn : 1 ≤ n) :
+    4 ≤ ((Finset.Ioo ((n.nth Nat.Prime) ^ 2) (((n + 1).nth Nat.Prime) ^ 2)).filter Nat.Prime).card := by
+  set prev := n.nth Nat.Prime
+  set next := (n + 1).nth Nat.Prime
+  have hprev_prime : prev.Prime := Nat.prime_nth_prime n
+  have hnext_prime : next.Prime := Nat.prime_nth_prime (n + 1)
+  have hprev_ge : 3 ≤ prev :=
+    Nat.nth_prime_one_eq_three ▸ (Nat.nth_le_nth Nat.infinite_setOf_prime).mpr hn
+  have hlt : prev < next :=
+    Nat.nth_strictMono Nat.infinite_setOf_prime (Nat.lt_succ_self n)
+  have hgap : prev + 2 ≤ next := by
+    have hodd_prev : Odd prev :=
+      hprev_prime.odd_of_ne_two
+        (Nat.ne_of_gt (lt_of_lt_of_le (by decide : (2 : ℕ) < 3) hprev_ge))
+    have hodd_next : Odd next :=
+      hnext_prime.odd_of_ne_two
+        (Nat.ne_of_gt (lt_of_lt_of_le (by decide : (2 : ℕ) < 3)
+          (hprev_ge.trans (le_of_lt hlt))))
+    rcases hodd_prev with ⟨k, hk⟩
+    rcases hodd_next with ⟨m, hm⟩
+    omega
+  obtain ⟨_, ⟨p1, hp1₁, hp1₂, hp1p⟩⟩ := hOpp prev (by omega)
+  obtain ⟨⟨p2, hp2₁, hp2₂, hp2p⟩, ⟨p3, hp3₁, hp3₂, hp3p⟩⟩ := hOpp (prev + 1) (by omega)
+  obtain ⟨⟨p4, hp4₁, hp4₂, hp4p⟩, _⟩ := hOpp (prev + 2) (by omega)
+  have hb0 : prev * (prev + 1) < (prev + 1) ^ 2 := by nlinarith
+  have hb1 : (prev + 1) * (prev + 2) < (prev + 2) ^ 2 := by nlinarith
+  have hsq : (prev + 2) ^ 2 ≤ next ^ 2 := Nat.pow_le_pow_left hgap 2
+  have hmul : (prev + 1) * ((prev + 1) - 1) = prev * (prev + 1) := by
+    rw [Nat.add_one_sub_one, Nat.mul_comm]
+  have hmul2 : (prev + 2) * ((prev + 2) - 1) = (prev + 1) * (prev + 2) := by
+    rw [show (prev + 2) - 1 = prev + 1 by omega, Nat.mul_comm]
+  rw [hmul] at hp2₁
+  rw [hmul2] at hp4₁
+  have h12 : p1 < p2 := by linarith
+  have h23 : p2 < p3 := by linarith
+  have h34 : p3 < p4 := by linarith
+  refine le_trans (b := ({p1, p2, p3, p4} : Finset ℕ).card) ?_ ?_
+  · simp [Finset.card_insert_of_notMem, h12.ne, (h12.trans h23).ne,
+      (h12.trans (h23.trans h34)).ne, h23.ne, (h23.trans h34).ne, h34.ne]
+  · apply Finset.card_le_card
+    intro x hx
+    simp only [Finset.mem_insert, Finset.mem_singleton] at hx
+    rcases hx with rfl | rfl | rfl | rfl
+    · exact Finset.mem_filter.mpr ⟨Finset.mem_Ioo.mpr ⟨hp1₁, by linarith [hp4₂, hsq]⟩, hp1p⟩
+    · exact Finset.mem_filter.mpr ⟨Finset.mem_Ioo.mpr ⟨by linarith [hp1₁], by linarith [hp4₂, hsq]⟩, hp2p⟩
+    · exact Finset.mem_filter.mpr ⟨Finset.mem_Ioo.mpr ⟨by linarith [hp1₁], by linarith [hp4₂, hsq]⟩, hp3p⟩
+    · exact Finset.mem_filter.mpr ⟨Finset.mem_Ioo.mpr ⟨by linarith [hp1₁], by linarith [hp4₂, hsq]⟩, hp4p⟩
+
+/-- Legendre para todo `n ≤ 19999`, como corolario de Oppermann hasta `20000`. -/
+theorem legendre_upto_19999 {n : ℕ} (hn : 1 ≤ n) (hn' : n ≤ 19999) :
     ∃ p, n ^ 2 < p ∧ p < (n + 1) ^ 2 ∧ p.Prime := by
   obtain ⟨⟨p, hp₁, hp₂, hpp⟩, _⟩ :=
-    oppermann_upto_10000 (x := n + 1) (by omega) (by omega)
+    oppermann_upto_20000 (x := n + 1) (by omega) (by omega)
   refine ⟨p, ?_, hp₂, hpp⟩
   have hmul : (n + 1) * ((n + 1) - 1) = n * (n + 1) := by
     rw [Nat.add_one_sub_one, Nat.mul_comm]
@@ -578,6 +679,11 @@ theorem legendre_upto_9999 {n : ℕ} (hn : 1 ≤ n) (hn' : n ≤ 9999) :
     rw [Nat.mul_add, Nat.mul_one, pow_two]
     omega
   omega
+
+/-- Legendre para todo `n ≤ 9999`, como corolario de Oppermann hasta `10000`. -/
+theorem legendre_upto_9999 {n : ℕ} (hn : 1 ≤ n) (hn' : n ≤ 9999) :
+    ∃ p, n ^ 2 < p ∧ p < (n + 1) ^ 2 ∧ p.Prime :=
+  legendre_upto_19999 hn (by omega)
 
 /--
 **Conjetura de Legendre (abierta).**
