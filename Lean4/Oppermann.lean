@@ -227,6 +227,157 @@ theorem oppermann_of_sqrt_window {x : ℕ} (_hx : 2 ≤ x)
   · simpa [h₁] using hL
   · simpa [h₂] using hR
 
+/-- `x(x+1) < (x+1)²`, así que el intervalo derecho de Oppermann cabe bajo el siguiente cuadrado. -/
+theorem pronic_lt_succ_sq {x : ℕ} : x * (x + 1) < (x + 1) ^ 2 := by
+  rw [pow_two, Nat.mul_add, Nat.mul_one]
+  nlinarith
+
+/-- Si `m < (x+1)²` y `minFac m > x`, entonces `m` es primo. -/
+theorem prime_of_minFac_gt_of_lt_succ_sq {x m : ℕ} (hm : 1 < m)
+    (hbound : m < (x + 1) ^ 2) (hfac : x < m.minFac) : m.Prime := by
+  by_contra hnp
+  have hsq := minFac_sq_le_self (by omega) hnp
+  have hx1 : x + 1 ≤ m.minFac := Nat.succ_le_of_lt hfac
+  have : (x + 1) ^ 2 ≤ m.minFac ^ 2 := Nat.pow_le_pow_left hx1 2
+  omega
+
+/-- Si `m < x²` y `minFac m ≥ x`, entonces `m` es primo. -/
+theorem prime_of_minFac_ge_of_lt_sq {x m : ℕ} (hm : 1 < m) (hbound : m < x ^ 2)
+    (hfac : x ≤ m.minFac) : m.Prime := by
+  by_contra hnp
+  have hsq := minFac_sq_le_self (by omega) hnp
+  have : x ^ 2 ≤ m.minFac ^ 2 := Nat.pow_le_pow_left hfac 2
+  omega
+
+/-- Un compuesto en `(x², x(x+1))` tiene un factor primo `≤ x`. -/
+theorem exists_prime_dvd_of_composite_right {x m : ℕ} (hx : 2 ≤ x)
+    (hlo : x ^ 2 < m) (hhi : m < x * (x + 1)) (hnp : ¬ m.Prime) :
+    ∃ p, p.Prime ∧ p ≤ x ∧ p ∣ m := by
+  have hpos : 0 < m := Nat.zero_lt_of_lt hlo
+  have hx4 : 4 ≤ x ^ 2 := by nlinarith
+  have hm1 : m ≠ 1 := by omega
+  refine ⟨m.minFac, minFac_prime hm1, ?_, minFac_dvd m⟩
+  have hbound : m < (x + 1) ^ 2 := hhi.trans pronic_lt_succ_sq
+  have hsqrt : m.sqrt < x + 1 := sqrt_lt'.mpr hbound
+  have hle : m.minFac ≤ m.sqrt := le_sqrt'.2 (minFac_sq_le_self hpos hnp)
+  omega
+
+/-- Lado derecho: hay un primo en `(x², x(x+1))` syss algún `m` del intervalo tiene `minFac > x`. -/
+theorem oppermann_right_iff_minFac {x : ℕ} (hx : 2 ≤ x) :
+    (∃ p, x ^ 2 < p ∧ p < x * (x + 1) ∧ p.Prime) ↔
+      ∃ m, x ^ 2 < m ∧ m < x * (x + 1) ∧ x < m.minFac := by
+  constructor
+  · intro ⟨p, hp₁, hp₂, hpp⟩
+    refine ⟨p, hp₁, hp₂, ?_⟩
+    rw [hpp.minFac_eq]
+    have hx1 : 1 < x := lt_of_lt_of_le one_lt_two hx
+    have : x < x ^ 2 := by
+      rw [pow_two]
+      simpa using Nat.mul_lt_mul_of_pos_right hx1 (Nat.zero_lt_of_lt hx1)
+    omega
+  · intro ⟨m, hm₁, hm₂, hfac⟩
+    have hm : 1 < m := by
+      have : 4 ≤ x ^ 2 := by nlinarith
+      omega
+    exact ⟨m, hm₁, hm₂, prime_of_minFac_gt_of_lt_succ_sq hm (hm₂.trans pronic_lt_succ_sq) hfac⟩
+
+/-- Lado izquierdo: hay un primo en `(x(x−1), x²)` syss algún `m` del intervalo tiene `minFac ≥ x`. -/
+theorem oppermann_left_iff_minFac {x : ℕ} (hx : 2 ≤ x) :
+    (∃ p, x * (x - 1) < p ∧ p < x ^ 2 ∧ p.Prime) ↔
+      ∃ m, x * (x - 1) < m ∧ m < x ^ 2 ∧ x ≤ m.minFac := by
+  constructor
+  · intro ⟨p, hp₁, hp₂, hpp⟩
+    refine ⟨p, hp₁, hp₂, ?_⟩
+    rw [hpp.minFac_eq]
+    have : x ≤ x * (x - 1) :=
+      Nat.le_mul_of_pos_right x (by omega)
+    omega
+  · intro ⟨m, hm₁, hm₂, hfac⟩
+    have hm : 1 < m := by
+      have : 2 ≤ x * (x - 1) := by
+        have : 1 ≤ x - 1 := by omega
+        exact Nat.mul_le_mul hx this
+      omega
+    exact ⟨m, hm₁, hm₂, prime_of_minFac_ge_of_lt_sq hm hm₂ hfac⟩
+
+/-- Si `1 < m`, entonces `x < minFac m` ↔ `m` es coprimo a `x#`. -/
+theorem minFac_gt_iff_coprime_primorial {x m : ℕ} (hm : 1 < m) :
+    x < m.minFac ↔ Coprime m (primorial x) := by
+  constructor
+  · intro h
+    by_contra hnc
+    obtain ⟨p, hp, hpm, hpP⟩ := (Prime.not_coprime_iff_dvd (m := m) (n := primorial x)).1 hnc
+    have hp_le : p ≤ x := hp.dvd_primorial_iff.1 hpP
+    have hmin : m.minFac ≤ p := minFac_le_of_dvd hp.two_le hpm
+    omega
+  · intro hcop
+    by_contra! hle
+    have hpf : (m.minFac).Prime := minFac_prime (Nat.ne_of_gt hm)
+    have : ¬ Coprime m (primorial x) :=
+      Nat.not_coprime_of_dvd_of_dvd hpf.one_lt (minFac_dvd m)
+        (hpf.dvd_primorial_iff.2 hle)
+    exact this hcop
+/-- Si `1 < m`, entonces `x ≤ minFac m` ↔ `m` es coprimo a `(x − 1)#`. -/
+theorem minFac_ge_iff_coprime_primorial_pred {x m : ℕ} (hx : 1 ≤ x) (hm : 1 < m) :
+    x ≤ m.minFac ↔ Coprime m (primorial (x - 1)) := by
+  have hiff := minFac_gt_iff_coprime_primorial (x := x - 1) hm
+  have : x - 1 < m.minFac ↔ x ≤ m.minFac := by omega
+  rwa [← this]
+
+/-- Lado derecho vía criba: primo en `(x², x(x+1))` syss algún `m` es coprimo a `x#`. -/
+theorem oppermann_right_iff_coprime_primorial {x : ℕ} (hx : 2 ≤ x) :
+    (∃ p, x ^ 2 < p ∧ p < x * (x + 1) ∧ p.Prime) ↔
+      ∃ m, x ^ 2 < m ∧ m < x * (x + 1) ∧ Coprime m (primorial x) := by
+  rw [oppermann_right_iff_minFac hx]
+  constructor
+  · intro ⟨m, hm₁, hm₂, hfac⟩
+    have hm : 1 < m := by
+      have : 4 ≤ x ^ 2 := by nlinarith
+      omega
+    exact ⟨m, hm₁, hm₂, (minFac_gt_iff_coprime_primorial hm).1 hfac⟩
+  · intro ⟨m, hm₁, hm₂, hcop⟩
+    have hm : 1 < m := by
+      have : 4 ≤ x ^ 2 := by nlinarith
+      omega
+    exact ⟨m, hm₁, hm₂, (minFac_gt_iff_coprime_primorial hm).2 hcop⟩
+
+/-- Lado izquierdo vía criba: primo en `(x(x−1), x²)` syss algún `m` es coprimo a `(x−1)#`. -/
+theorem oppermann_left_iff_coprime_primorial {x : ℕ} (hx : 2 ≤ x) :
+    (∃ p, x * (x - 1) < p ∧ p < x ^ 2 ∧ p.Prime) ↔
+      ∃ m, x * (x - 1) < m ∧ m < x ^ 2 ∧ Coprime m (primorial (x - 1)) := by
+  rw [oppermann_left_iff_minFac hx]
+  constructor
+  · intro ⟨m, hm₁, hm₂, hfac⟩
+    have hm : 1 < m := by
+      have : 2 ≤ x * (x - 1) := by
+        have : 1 ≤ x - 1 := by omega
+        exact Nat.mul_le_mul hx this
+      omega
+    exact ⟨m, hm₁, hm₂,
+      (minFac_ge_iff_coprime_primorial_pred (by omega) hm).1 hfac⟩
+  · intro ⟨m, hm₁, hm₂, hcop⟩
+    have hm : 1 < m := by
+      have : 2 ≤ x * (x - 1) := by
+        have : 1 ≤ x - 1 := by omega
+        exact Nat.mul_le_mul hx this
+      omega
+    exact ⟨m, hm₁, hm₂,
+      (minFac_ge_iff_coprime_primorial_pred (by omega) hm).2 hcop⟩
+
+/-- Oppermann para `x` syss ambos intervalos contienen un entero coprimo al primorial adecuado. -/
+theorem oppermann_iff_coprime_primorial {x : ℕ} (hx : 2 ≤ x) :
+    ((∃ p, x * (x - 1) < p ∧ p < x ^ 2 ∧ p.Prime) ∧
+      (∃ p, x ^ 2 < p ∧ p < x * (x + 1) ∧ p.Prime)) ↔
+      (∃ m, x * (x - 1) < m ∧ m < x ^ 2 ∧ Coprime m (primorial (x - 1))) ∧
+        ∃ m, x ^ 2 < m ∧ m < x * (x + 1) ∧ Coprime m (primorial x) := by
+  constructor
+  · intro ⟨hL, hR⟩
+    exact ⟨(oppermann_left_iff_coprime_primorial hx).1 hL,
+      (oppermann_right_iff_coprime_primorial hx).1 hR⟩
+  · intro ⟨hL, hR⟩
+    exact ⟨(oppermann_left_iff_coprime_primorial hx).2 hL,
+      (oppermann_right_iff_coprime_primorial hx).2 hR⟩
+
 /--
 Forma clásica (Wikipedia): Oppermann vale para `x` si y solo si
 `π(x(x−1)) < π(x²) < π(x(x+1))`.
@@ -379,7 +530,9 @@ theorem oppermann_of_pi {x : ℕ} (hx : 2 ≤ x)
 **Conjetura de Oppermann (abierta).**
 Para todo `x ≥ 2` hay un primo en `(x(x−1), x²)` y otro en `(x², x(x+1))`.
 Los casos `2 ≤ x ≤ 10000` están demostrados. Equivalencias sorry-free:
-`oppermann_iff_pi`, `oppermann_iff_primorial`, `oppermann_of_sqrt_window`.
+`oppermann_iff_pi`, `oppermann_iff_primorial`, `oppermann_of_sqrt_window`,
+`oppermann_left_iff_minFac`, `oppermann_right_iff_minFac`,
+`oppermann_left_iff_coprime_primorial`, `oppermann_right_iff_coprime_primorial`.
 Bertrand no basta (`bertrand_remainder_nonempty`).
 -/
 theorem oppermann_conjecture (x : ℕ) (hx : 2 ≤ x) :
@@ -387,8 +540,13 @@ theorem oppermann_conjecture (x : ℕ) (hx : 2 ≤ x) :
     (∃ p, x ^ 2 < p ∧ p < x * (x + 1) ∧ p.Prime) := by
   by_cases hle : x ≤ 10000
   · exact oppermann_upto_10000 hx hle
-  · refine oppermann_of_sqrt_window hx ?_ ?_
-    all_goals sorry
+  · constructor
+    · refine (oppermann_left_iff_coprime_primorial hx).2 ?_
+      -- Falta `m ∈ (x(x−1), x²)` coprimo a `(x−1)#` (criba: ningún primo `< x`).
+      sorry
+    · refine (oppermann_right_iff_coprime_primorial hx).2 ?_
+      -- Falta `m ∈ (x², x(x+1))` coprimo a `x#` (criba: ningún primo `≤ x`).
+      sorry
 
 /-- Oppermann implica Legendre (teorema). -/
 theorem oppermann_implies_legendre
