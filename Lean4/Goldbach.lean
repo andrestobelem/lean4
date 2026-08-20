@@ -12,14 +12,6 @@ open Nat
 
 namespace GoldbachConjecture
 
-/--
-**Conjetura de Goldbach (abierta).**
-¿Todo entero par mayor que 2 se puede escribir como suma de dos primos?
--/
-theorem goldbach :
-    ∀ n : ℕ, 2 < n → Even n → ∃ p q, Nat.Prime p ∧ Nat.Prime q ∧ n = p + q := by
-  sorry
-
 /-- Goldbach vale para el doble de un primo: `2p = p + p`. -/
 theorem goldbach_twice_prime {p : ℕ} (hp : Nat.Prime p) :
     ∃ q r, Nat.Prime q ∧ Nat.Prime r ∧ 2 * p = q + r :=
@@ -38,6 +30,23 @@ theorem goldbach_of_half_prime {n : ℕ} (hen : Even n) (hp : Nat.Prime (n / 2))
   have hk' : n / 2 = k := by omega
   rw [this]
   simpa [hk'] using goldbach_twice_prime (p := k) (by simpa [hk'] using hp)
+
+/--
+**Conjetura de Goldbach (abierta).**
+El intento directo (inducción en `n`) no funciona: saber que `n` es `p+q` no produce
+una descomposición de `n+2`. Aquí se cierran dos familias; el resto sigue abierto.
+-/
+theorem goldbach :
+    ∀ n : ℕ, 2 < n → Even n → ∃ p q, Nat.Prime p ∧ Nat.Prime q ∧ n = p + q := by
+  intro n hn hen
+  by_cases hp : Nat.Prime (n / 2)
+  · exact goldbach_of_half_prime hen hp
+  by_cases hp2 : Nat.Prime (n - 2)
+  · have h2 : 2 + (n - 2) = n := by omega
+    obtain ⟨q, r, hq, hr, heq⟩ := goldbach_two_plus_prime hp2
+    exact ⟨q, r, hq, hr, h2 ▸ heq⟩
+  -- Resto: hace falta un primo `3 ≤ p ≤ n-3` con `n-p` primo.
+  sorry
 
 /-- Test booleano: ¿existe un primo `p < n` tal que `n - p` también es primo? -/
 def goldbachWitness (n : ℕ) : Bool :=
