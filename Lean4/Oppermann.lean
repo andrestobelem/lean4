@@ -66,25 +66,45 @@ theorem oppermannHolds_iff {x : ℕ} (hx : 2 ≤ x) :
   obtain ⟨h₁, h₂⟩ := oppermann_bounds hx
   simp only [oppermannHolds, Bool.and_eq_true, hasPrimeInIoo_iff h₁, hasPrimeInIoo_iff h₂]
 
-/-- Oppermann vale para todo `2 ≤ x ≤ 100`. -/
-private theorem oppermann_bool_upto_100 :
-    (List.range' 2 99).all oppermannHolds = true := by
+/-- Oppermann vale para todo `2 ≤ x ≤ 10000`. -/
+private theorem oppermann_bool_upto_10000 :
+    (List.range' 2 9999).all oppermannHolds = true := by
   native_decide
 
-theorem oppermann_upto_100 {x : ℕ} (hx₂ : 2 ≤ x) (hx : x ≤ 100) :
+theorem oppermann_upto_10000 {x : ℕ} (hx₂ : 2 ≤ x) (hx : x ≤ 10000) :
     (∃ p, x * (x - 1) < p ∧ p < x ^ 2 ∧ p.Prime) ∧
     (∃ p, x ^ 2 < p ∧ p < x * (x + 1) ∧ p.Prime) := by
-  have hmem : x ∈ List.range' 2 99 := by
+  have hmem : x ∈ List.range' 2 9999 := by
     rw [List.mem_range'_1]
     exact ⟨hx₂, by omega⟩
   have hbool : oppermannHolds x = true :=
-    (List.all_eq_true.1 oppermann_bool_upto_100) x hmem
+    (List.all_eq_true.1 oppermann_bool_upto_10000) x hmem
   exact (oppermannHolds_iff hx₂).1 hbool
+
+theorem oppermann_upto_2000 {x : ℕ} (hx₂ : 2 ≤ x) (hx : x ≤ 2000) :
+    (∃ p, x * (x - 1) < p ∧ p < x ^ 2 ∧ p.Prime) ∧
+    (∃ p, x ^ 2 < p ∧ p < x * (x + 1) ∧ p.Prime) :=
+  oppermann_upto_10000 hx₂ (by omega)
+
+theorem oppermann_upto_500 {x : ℕ} (hx₂ : 2 ≤ x) (hx : x ≤ 500) :
+    (∃ p, x * (x - 1) < p ∧ p < x ^ 2 ∧ p.Prime) ∧
+    (∃ p, x ^ 2 < p ∧ p < x * (x + 1) ∧ p.Prime) :=
+  oppermann_upto_10000 hx₂ (by omega)
+
+theorem oppermann_upto_200 {x : ℕ} (hx₂ : 2 ≤ x) (hx : x ≤ 200) :
+    (∃ p, x * (x - 1) < p ∧ p < x ^ 2 ∧ p.Prime) ∧
+    (∃ p, x ^ 2 < p ∧ p < x * (x + 1) ∧ p.Prime) :=
+  oppermann_upto_10000 hx₂ (by omega)
+
+theorem oppermann_upto_100 {x : ℕ} (hx₂ : 2 ≤ x) (hx : x ≤ 100) :
+    (∃ p, x * (x - 1) < p ∧ p < x ^ 2 ∧ p.Prime) ∧
+    (∃ p, x ^ 2 < p ∧ p < x * (x + 1) ∧ p.Prime) :=
+  oppermann_upto_10000 hx₂ (by omega)
 
 theorem oppermann_upto_50 {x : ℕ} (hx₂ : 2 ≤ x) (hx : x ≤ 50) :
     (∃ p, x * (x - 1) < p ∧ p < x ^ 2 ∧ p.Prime) ∧
     (∃ p, x ^ 2 < p ∧ p < x * (x + 1) ∧ p.Prime) :=
-  oppermann_upto_100 hx₂ (by omega)
+  oppermann_upto_10000 hx₂ (by omega)
 
 /-- Primer caso a mano: entre 2 y 4 está 3; entre 4 y 6 está 5. -/
 theorem oppermann_two_explicit :
@@ -120,14 +140,14 @@ theorem bertrand_remainder_nonempty {x : ℕ} (hx : 2 ≤ x) :
 /--
 **Conjetura de Oppermann (abierta).**
 Para todo `x ≥ 2` hay un primo en `(x(x-1), x²)` y otro en `(x², x(x+1))`.
-Los casos `2 ≤ x ≤ 100` están demostrados. El resto no se deduce de Bertrand:
+Los casos `2 ≤ x ≤ 10000` están demostrados. El resto no se deduce de Bertrand:
 `bertrand_remainder_nonempty`.
 -/
 theorem oppermann_conjecture (x : ℕ) (hx : 2 ≤ x) :
     (∃ p, x * (x - 1) < p ∧ p < x ^ 2 ∧ p.Prime) ∧
     (∃ p, x ^ 2 < p ∧ p < x * (x + 1) ∧ p.Prime) := by
-  by_cases hle : x ≤ 100
-  · exact oppermann_upto_100 hx hle
+  by_cases hle : x ≤ 10000
+  · exact oppermann_upto_10000 hx hle
   · sorry
 
 /-- Oppermann implica Legendre (teorema). -/
@@ -153,9 +173,9 @@ Para todo `n ≥ 1` hay un primo estrictamente entre `n²` y `(n+1)²`.
 -/
 theorem legendre_conjecture (n : ℕ) (hn : 1 ≤ n) :
     ∃ p, n ^ 2 < p ∧ p < (n + 1) ^ 2 ∧ p.Prime := by
-  by_cases hle : n ≤ 99
+  by_cases hle : n ≤ 9999
   · obtain ⟨⟨p, hp₁, hp₂, hpp⟩, _⟩ :=
-      oppermann_upto_100 (x := n + 1) (by omega) (by omega)
+      oppermann_upto_10000 (x := n + 1) (by omega) (by omega)
     refine ⟨p, ?_, hp₂, hpp⟩
     have hmul : (n + 1) * ((n + 1) - 1) = n * (n + 1) := by
       rw [Nat.add_one_sub_one, Nat.mul_comm]
