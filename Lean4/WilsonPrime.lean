@@ -111,7 +111,13 @@ theorem wilson_primes_nonempty : {p : ℕ | IsWilsonPrime p}.Nonempty :=
 theorem not_isWilsonPrime_one : ¬ IsWilsonPrime 1 := by
   norm_num [IsWilsonPrime]
 
-/-- El primo 7 no es un primo de Wilson. -/
+/-- El primo 2 no es un primo de Wilson. -/
+theorem not_isWilsonPrime_two : ¬ IsWilsonPrime 2 := by
+  decide
+
+/-- El primo 3 no es un primo de Wilson. -/
+theorem not_isWilsonPrime_three : ¬ IsWilsonPrime 3 := by
+  decide
 theorem not_isWilsonPrime_seven : ¬ IsWilsonPrime 7 := by
   norm_num [IsWilsonPrime, Nat.factorial]
 
