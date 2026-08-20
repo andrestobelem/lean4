@@ -8,14 +8,17 @@ Conjeturas abiertas sobre huecos de primos entre cuadrados.
 import Mathlib.Data.Nat.Prime.Basic
 import Mathlib.Data.Nat.Prime.Nth
 import Mathlib.Data.Nat.Sqrt
+import Mathlib.NumberTheory.ArithmeticFunction.Moebius
 import Mathlib.NumberTheory.Bertrand
 import Mathlib.NumberTheory.PrimeCounting
 import Mathlib.NumberTheory.Primorial
 import Mathlib.Tactic
 
 open Nat
-
+open ArithmeticFunction
 open scoped Nat.Prime
+open scoped ArithmeticFunction.Moebius
+open scoped ArithmeticFunction.zeta
 
 namespace Oppermann
 
@@ -380,6 +383,183 @@ theorem oppermann_iff_coprime_primorial {x : ℕ} (hx : 2 ≤ x) :
     exact ⟨(oppermann_left_iff_coprime_primorial hx).2 hL,
       (oppermann_right_iff_coprime_primorial hx).2 hR⟩
 
+/-! ## Criba de Möbius (reducción del hueco) -/
+
+/-- `∑_{d∣n} μ(d)` vale `1` si `n = 1` y `0` en otro caso. -/
+theorem sum_moebius_divisors (n : ℕ) :
+    ∑ d ∈ n.divisors, (μ d : ℤ) = if n = 1 then (1 : ℤ) else 0 := by
+  have h := congrArg (fun f : ArithmeticFunction ℤ => (f : ℕ → ℤ) n) moebius_mul_coe_zeta
+  -- (μ * ζ) n = 1 n
+  change (μ * ζ : ArithmeticFunction ℤ) n = (1 : ArithmeticFunction ℤ) n at h
+  rw [coe_mul_zeta_apply, one_apply] at h
+  exact h
+
+/-- Indicador de `Coprime m n` como suma de Möbius sobre divisores comunes. -/
+theorem sum_moebius_dvd_eq_ite_coprime (m n : ℕ) (hn : n ≠ 0) :
+    ∑ d ∈ n.divisors, (if d ∣ m then (μ d : ℤ) else 0) =
+      if Coprime m n then (1 : ℤ) else 0 := by
+  classical
+  rw [← Finset.sum_filter]
+  have hset : n.divisors.filter (· ∣ m) = (Nat.gcd m n).divisors := by
+    ext d
+    simp only [Finset.mem_filter, Nat.mem_divisors, Nat.dvd_gcd_iff]
+    constructor
+    · rintro ⟨⟨hdn, _⟩, hdm⟩
+      exact ⟨⟨hdm, hdn⟩, (Nat.gcd_pos_of_pos_right m (Nat.pos_of_ne_zero hn)).ne'⟩
+    · rintro ⟨⟨hdm, hdn⟩, _⟩
+      exact ⟨⟨hdn, hn⟩, hdm⟩
+  simp [hset, sum_moebius_divisors, coprime_iff_gcd_eq_one]
+
+/-- Múltiplos de `d` en el intervalo abierto `(lo, hi)`. -/
+theorem card_dvd_Ioo (lo hi d : ℕ) (_hd : 0 < d) (hhi : 1 ≤ hi) :
+    ((Finset.Ioo lo hi).filter (d ∣ ·)).card = (hi - 1) / d - lo / d := by
+  have hIoo : Finset.Ioo lo hi = Finset.Ioc lo (hi - 1) := by
+    ext m
+    simp only [Finset.mem_Ioo, Finset.mem_Ioc]
+    exact ⟨fun ⟨h1, h2⟩ => ⟨h1, Nat.le_sub_one_of_lt h2⟩,
+      fun ⟨h1, h2⟩ => ⟨h1, Nat.lt_of_le_pred hhi h2⟩⟩
+  have h0n := Nat.Ioc_filter_dvd_card_eq_div (hi - 1) d
+  have h0lo := Nat.Ioc_filter_dvd_card_eq_div lo d
+  classical
+  rw [hIoo]
+  rcases le_or_gt lo (hi - 1) with hle | hlt
+  · have hdisj : Disjoint (Finset.Ioc 0 lo) (Finset.Ioc lo (hi - 1)) :=
+      Finset.disjoint_left.2 fun a ha hb => by
+        simp only [Finset.mem_Ioc] at ha hb; omega
+    have hunion : Finset.Ioc 0 lo ∪ Finset.Ioc lo (hi - 1) = Finset.Ioc 0 (hi - 1) := by
+      ext a
+      simp only [Finset.mem_union, Finset.mem_Ioc]
+      constructor
+      · rintro (h | h) <;> omega
+      · intro h
+        by_cases hap : a ≤ lo
+        · left; omega
+        · right; omega
+    have hdisjf :
+        Disjoint ((Finset.Ioc 0 lo).filter (d ∣ ·))
+          ((Finset.Ioc lo (hi - 1)).filter (d ∣ ·)) :=
+      hdisj.mono (Finset.filter_subset _ _) (Finset.filter_subset _ _)
+    have hcard :
+        ((Finset.Ioc 0 (hi - 1)).filter (d ∣ ·)).card =
+          ((Finset.Ioc 0 lo).filter (d ∣ ·)).card +
+            ((Finset.Ioc lo (hi - 1)).filter (d ∣ ·)).card := by
+      rw [← hunion, Finset.filter_union, Finset.card_union_of_disjoint hdisjf]
+    rw [h0n, h0lo] at hcard
+    omega
+  · have hempty : Finset.Ioc lo (hi - 1) = ∅ := Finset.Ioc_eq_empty_of_le (le_of_lt hlt)
+    simp [hempty]
+    have : (hi - 1) / d ≤ lo / d := Nat.div_le_div_right (Nat.le_of_lt hlt)
+    omega
+
+/-- Conteo de coprimos en `(lo, hi)` vía Möbius. -/
+theorem card_coprime_Ioo_eq_moebius_sum (lo hi n : ℕ) (hn : n ≠ 0) (_hhi : 1 ≤ hi) :
+    (((Finset.Ioo lo hi).filter (fun m => Coprime m n)).card : ℤ) =
+      ∑ d ∈ n.divisors,
+        μ d * (((Finset.Ioo lo hi).filter (d ∣ ·)).card : ℤ) := by
+  classical
+  have hsum :
+      (((Finset.Ioo lo hi).filter (fun m => Coprime m n)).card : ℤ) =
+        ∑ m ∈ Finset.Ioo lo hi,
+          ∑ d ∈ n.divisors, (if d ∣ m then (μ d : ℤ) else 0) := by
+    rw [Finset.card_filter, Nat.cast_sum]
+    refine Finset.sum_congr rfl fun m _ => ?_
+    rw [sum_moebius_dvd_eq_ite_coprime m n hn]
+    split_ifs <;> simp
+  rw [hsum, Finset.sum_comm]
+  refine Finset.sum_congr rfl fun d _ => ?_
+  have hterm :
+      ∀ m, (if d ∣ m then (μ d : ℤ) else 0) =
+        μ d * (if d ∣ m then (1 : ℤ) else 0) := by
+    intro m; split_ifs <;> ring
+  simp_rw [hterm, ← Finset.mul_sum]
+  congr 1
+  rw [Finset.sum_boole, Finset.card_filter]
+
+theorem card_coprime_Ioo_eq_moebius_quotients (lo hi n : ℕ) (hn : n ≠ 0) (hhi : 1 ≤ hi) :
+    (((Finset.Ioo lo hi).filter (fun m => Coprime m n)).card : ℤ) =
+      ∑ d ∈ n.divisors, μ d * (((hi - 1) / d - lo / d : ℕ) : ℤ) := by
+  rw [card_coprime_Ioo_eq_moebius_sum lo hi n hn hhi]
+  refine Finset.sum_congr rfl fun d hd => ?_
+  rw [card_dvd_Ioo lo hi d (Nat.pos_of_mem_divisors hd) hhi]
+
+/-- Lado derecho de Oppermann ↔ suma de Möbius positiva sobre divisores de `x#`. -/
+theorem oppermann_right_iff_moebius_pos {x : ℕ} (hx : 2 ≤ x) :
+    (∃ p, x ^ 2 < p ∧ p < x * (x + 1) ∧ p.Prime) ↔
+      0 < ∑ d ∈ (primorial x).divisors,
+          μ d * ((((x * (x + 1) - 1) / d - x ^ 2 / d) : ℕ) : ℤ) := by
+  have hhi : 1 ≤ x * (x + 1) := by
+    have : 1 ≤ x := le_trans (by decide : 1 ≤ 2) hx
+    exact Nat.mul_le_mul this (Nat.succ_le_succ (Nat.zero_le _))
+  have hP : primorial x ≠ 0 := (primorial_pos x).ne'
+  rw [oppermann_right_iff_coprime_primorial hx]
+  constructor
+  · intro ⟨m, hm₁, hm₂, hcop⟩
+    have hmem :
+        m ∈ (Finset.Ioo (x ^ 2) (x * (x + 1))).filter
+          (fun t => Coprime t (primorial x)) := by
+      exact Finset.mem_filter.2 ⟨Finset.mem_Ioo.2 ⟨hm₁, hm₂⟩, hcop⟩
+    have hpos :
+        0 < ((Finset.Ioo (x ^ 2) (x * (x + 1))).filter
+          (fun t => Coprime t (primorial x))).card :=
+      Finset.card_pos.2 ⟨m, hmem⟩
+    have heq :=
+      card_coprime_Ioo_eq_moebius_quotients (x ^ 2) (x * (x + 1)) (primorial x) hP hhi
+    exact heq ▸ Int.natCast_pos.2 hpos
+  · intro hsum
+    have heq :=
+      card_coprime_Ioo_eq_moebius_quotients (x ^ 2) (x * (x + 1)) (primorial x) hP hhi
+    have hcard :
+        0 < ((Finset.Ioo (x ^ 2) (x * (x + 1))).filter
+          (fun t => Coprime t (primorial x))).card := by
+      have : 0 <
+          (((Finset.Ioo (x ^ 2) (x * (x + 1))).filter
+            (fun t => Coprime t (primorial x))).card : ℤ) := by
+        rwa [heq]
+      exact Int.natCast_pos.1 this
+    obtain ⟨m, hm⟩ := Finset.card_pos.1 hcard
+    simp only [Finset.mem_filter, Finset.mem_Ioo] at hm
+    exact ⟨m, hm.1.1, hm.1.2, hm.2⟩
+
+/-- Lado izquierdo de Oppermann ↔ suma de Möbius positiva sobre divisores de `(x−1)#`. -/
+theorem oppermann_left_iff_moebius_pos {x : ℕ} (hx : 2 ≤ x) :
+    (∃ p, x * (x - 1) < p ∧ p < x ^ 2 ∧ p.Prime) ↔
+      0 < ∑ d ∈ (primorial (x - 1)).divisors,
+          μ d * ((((x ^ 2 - 1) / d - (x * (x - 1)) / d) : ℕ) : ℤ) := by
+  have hhi : 1 ≤ x ^ 2 := by
+    have : 1 ≤ x := le_trans (by decide : 1 ≤ 2) hx
+    exact Nat.pow_le_pow_left this 2
+  have hP : primorial (x - 1) ≠ 0 := (primorial_pos (x - 1)).ne'
+  rw [oppermann_left_iff_coprime_primorial hx]
+  constructor
+  · intro ⟨m, hm₁, hm₂, hcop⟩
+    have hmem :
+        m ∈ (Finset.Ioo (x * (x - 1)) (x ^ 2)).filter
+          (fun t => Coprime t (primorial (x - 1))) :=
+      Finset.mem_filter.2 ⟨Finset.mem_Ioo.2 ⟨hm₁, hm₂⟩, hcop⟩
+    have hpos :
+        0 < ((Finset.Ioo (x * (x - 1)) (x ^ 2)).filter
+          (fun t => Coprime t (primorial (x - 1)))).card :=
+      Finset.card_pos.2 ⟨m, hmem⟩
+    have heq :=
+      card_coprime_Ioo_eq_moebius_quotients (x * (x - 1)) (x ^ 2)
+        (primorial (x - 1)) hP hhi
+    exact heq ▸ Int.natCast_pos.2 hpos
+  · intro hsum
+    have heq :=
+      card_coprime_Ioo_eq_moebius_quotients (x * (x - 1)) (x ^ 2)
+        (primorial (x - 1)) hP hhi
+    have hcard :
+        0 < ((Finset.Ioo (x * (x - 1)) (x ^ 2)).filter
+          (fun t => Coprime t (primorial (x - 1)))).card := by
+      have : 0 <
+          (((Finset.Ioo (x * (x - 1)) (x ^ 2)).filter
+            (fun t => Coprime t (primorial (x - 1)))).card : ℤ) := by
+        rwa [heq]
+      exact Int.natCast_pos.1 this
+    obtain ⟨m, hm⟩ := Finset.card_pos.1 hcard
+    simp only [Finset.mem_filter, Finset.mem_Ioo] at hm
+    exact ⟨m, hm.1.1, hm.1.2, hm.2⟩
+
 /--
 Cota tipo Jacobsthal: si todo intervalo abierto de longitud `x` contiene un entero
 coprimo a `x#`, el lado derecho de Oppermann vale (tomar el intervalo `(x², x²+x)`).
@@ -578,7 +758,8 @@ Para todo `x ≥ 2` hay un primo en `(x(x−1), x²)` y otro en `(x², x(x+1))`.
 Los casos `2 ≤ x ≤ 20000` están demostrados. Equivalencias sorry-free:
 `oppermann_iff_pi`, `oppermann_iff_primorial`, `oppermann_of_sqrt_window`,
 `oppermann_left_iff_minFac`, `oppermann_right_iff_minFac`,
-`oppermann_left_iff_coprime_primorial`, `oppermann_right_iff_coprime_primorial`.
+`oppermann_left_iff_coprime_primorial`, `oppermann_right_iff_coprime_primorial`,
+`oppermann_left_iff_moebius_pos`, `oppermann_right_iff_moebius_pos`.
 Suficiente (más fuerte): `oppermann_of_jacobsthal`. Bertrand no basta
 (`bertrand_remainder_nonempty`). Corolarios condicionales:
 `oppermann_implies_legendre`, `oppermann_implies_brocard`.
@@ -589,11 +770,11 @@ theorem oppermann_conjecture (x : ℕ) (hx : 2 ≤ x) :
   by_cases hle : x ≤ 20000
   · exact oppermann_upto_20000 hx hle
   · constructor
-    · refine (oppermann_left_iff_coprime_primorial hx).2 ?_
-      -- Falta `m ∈ (x(x−1), x²)` coprimo a `(x−1)#`.
+    · refine (oppermann_left_iff_moebius_pos hx).2 ?_
+      -- Falta que la suma de Möbius sobre `(x−1)#` en `(x(x−1), x²)` sea > 0.
       sorry
-    · refine (oppermann_right_iff_coprime_primorial hx).2 ?_
-      -- Falta `m ∈ (x², x(x+1))` coprimo a `x#`.
+    · refine (oppermann_right_iff_moebius_pos hx).2 ?_
+      -- Falta que la suma de Möbius sobre `x#` en `(x², x(x+1))` sea > 0.
       sorry
 
 /-- Oppermann implica Legendre (teorema). -/
