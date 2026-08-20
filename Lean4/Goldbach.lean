@@ -20,6 +20,25 @@ theorem goldbach :
     ∀ n : ℕ, 2 < n → Even n → ∃ p q, Nat.Prime p ∧ Nat.Prime q ∧ n = p + q := by
   sorry
 
+/-- Goldbach vale para el doble de un primo: `2p = p + p`. -/
+theorem goldbach_twice_prime {p : ℕ} (hp : Nat.Prime p) :
+    ∃ q r, Nat.Prime q ∧ Nat.Prime r ∧ 2 * p = q + r :=
+  ⟨p, p, hp, hp, by omega⟩
+
+/-- Goldbach vale para `2 + p` cuando `p` es primo (en particular, para pares `n` con `n - 2` primo). -/
+theorem goldbach_two_plus_prime {p : ℕ} (hp : Nat.Prime p) :
+    ∃ q r, Nat.Prime q ∧ Nat.Prime r ∧ 2 + p = q + r :=
+  ⟨2, p, Nat.prime_two, hp, rfl⟩
+
+/-- Si `n` es par y `n / 2` es primo, entonces Goldbach vale para `n`. -/
+theorem goldbach_of_half_prime {n : ℕ} (hen : Even n) (hp : Nat.Prime (n / 2)) :
+    ∃ p q, Nat.Prime p ∧ Nat.Prime q ∧ n = p + q := by
+  obtain ⟨k, hk⟩ := hen
+  have : n = 2 * k := by omega
+  have hk' : n / 2 = k := by omega
+  rw [this]
+  simpa [hk'] using goldbach_twice_prime (p := k) (by simpa [hk'] using hp)
+
 /-- Test booleano: ¿existe un primo `p < n` tal que `n - p` también es primo? -/
 def goldbachWitness (n : ℕ) : Bool :=
   (List.range n).any fun p => decide (Nat.Prime p) && decide (Nat.Prime (n - p))
